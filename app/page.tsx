@@ -14,14 +14,6 @@ export default function ScorekeeperApp() {
   const [postGameComment, setPostGameComment] = useState('');
   const [activeGame, setActiveGame] = useState<RugbyGame | null>(null);
   const [historicGames, setHistoricGames] = useLocalStorage('rugby_history', new Array<RugbyGame>());
-  const [elapsedTimeDisplay, setElapsedTimeDisplay] = useState('00:00');
-
-  const formatTime = (ms: number): string => {
-    const totalSeconds = Math.floor(ms / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-  };
 
   const handleScore = (playerId: string, type: 'try' | 'conversion') => {
     if (!activeGame || activeGame.isFinished) return;
@@ -218,19 +210,14 @@ export default function ScorekeeperApp() {
           <div className="text-sm text-gray-500 font-medium mt-1">Our Team</div>
         </div>
 
-        {/* DYNAMIC TIMER DISPLAY (Replaces the '|') */}
         <span className="text-2xl font-bold tabular-nums">
           <GameTimer
             game={activeGame}
-            onTimerUpdate={(ms) => {
-              // This is called every second by the timer component
-              setElapsedTimeDisplay(formatTime(ms));
-            }}
+            onTimerUpdate={(ms) => { }}
           />
 
         </span>
 
-        {/* OPPONENT SCORE */}
         <div className="flex flex-col items-center">
           <h1 className="text-4xl font-black text-gray-800">
             <span className="text-red-600">{activeGame.opponentScore}</span>
