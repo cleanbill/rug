@@ -25,7 +25,7 @@ export interface RugbyGame {
 }
 
 // Player data (can be simple array of names/IDs)
-export const U13_PLAYERS = [
+export const PLAYERS = [
     { id: 'p01', name: 'Ben' },
     { id: 'p02', name: 'Cory' },
     { id: 'p03', name: 'Declan' },

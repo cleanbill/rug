@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { RugbyGame, ScoreEvent, U13_PLAYERS } from '../types';
+import { RugbyGame, ScoreEvent, PLAYERS } from '../types';
 
 interface HistoryViewerProps {
     games: RugbyGame[];
@@ -14,7 +14,7 @@ const calculateTotalScore = (events: ScoreEvent[]): number => {
 };
 
 // Helper to format duration
-const formatDuration = (startTime: number, elapsedTimeAtPause: number): string => {
+const formatDuration = (elapsedTimeAtPause: number): string => {
     const finalElapsedTime = elapsedTimeAtPause;
     const totalSeconds = Math.floor(finalElapsedTime / 1000);
     const minutes = Math.floor(totalSeconds / 60);
@@ -56,7 +56,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
             {games.map((game) => {
                 const totalScore = calculateTotalScore(game.scoreEvents);
                 const gameDate = new Date(game.startTime).toLocaleDateString();
-                const duration = formatDuration(game.startTime, game.elapsedTimeAtPause);
+                const duration = formatDuration(game.elapsedTimeAtPause);
                 const finalScoreDifference = totalScore - game.opponentScore;
 
                 return (
@@ -81,7 +81,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                             <summary className="font-semibold cursor-pointer hover:text-indigo-600 transition">View Scoring Breakdown</summary>
                             <ul className="list-disc list-inside mt-2 space-y-1 bg-gray-50 p-3 rounded-lg">
                                 {game.scoreEvents.map((event, index) => {
-                                    const scorer = U13_PLAYERS.find(p => p.id === event.playerId)?.name || 'Unknown Player';
+                                    const scorer = PLAYERS.find(p => p.id === event.playerId)?.name || 'Unknown Player';
                                     const time = new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
                                     return (
                                         <li key={index}>

@@ -1,7 +1,7 @@
 // pages/index.tsx (Main App View)
 'use client';
 import { useState, useMemo } from 'react';
-import { RugbyGame, ScoreEvent, RUGBY_RULES, U13_PLAYERS } from './types';
+import { RugbyGame, ScoreEvent, RUGBY_RULES, PLAYERS } from './types';
 import GameTimer from './components/Timer';
 import { v4 as uuidv4 } from 'uuid';
 import HistoryViewer from './components/HistoryViewer';
@@ -161,7 +161,7 @@ export default function ScorekeeperApp() {
   if (!activeGame) {
     return (<div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
       <h1 className="text-3xl font-extrabold text-indigo-700 mb-6">
-        U13 Rugby Scorekeeper
+        Rugby Scorekeeper
       </h1>
       <p className="text-gray-600 mb-8 text-lg text-center max-w-sm">
         Track match time, score player tries, and save game history.
@@ -268,7 +268,7 @@ export default function ScorekeeperApp() {
       <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
 
       <div className="grid grid-cols-4 gap-3 w-full max-w-xl mb-6">
-        {U13_PLAYERS.map(player => (
+        {PLAYERS.map(player => (
           <div key={player.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
             <p className="font-semibold text-lg text-gray-800 truncate mb-2">{player.name}</p>
             <div className="flex justify-between gap-2">
