@@ -1,65 +1,317 @@
-import Image from "next/image";
+// pages/index.tsx (Main App View)
+'use client';
+import { useState, useMemo } from 'react';
+import { RugbyGame, ScoreEvent, RUGBY_RULES, U13_PLAYERS } from './types';
+import GameTimer from './components/Timer';
+import { v4 as uuidv4 } from 'uuid';
+import HistoryViewer from './components/HistoryViewer';
+import { useLocalStorage } from 'usehooks-ts';
+import FinishGameModal from './components/FinishGameModal';
 
-export default function Home() {
+
+export default function ScorekeeperApp() {
+  const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
+  const [postGameComment, setPostGameComment] = useState('');
+  const [activeGame, setActiveGame] = useState<RugbyGame | null>(null);
+  const [historicGames, setHistoricGames] = useLocalStorage('rugby_history', new Array<RugbyGame>());
+  const [elapsedTimeDisplay, setElapsedTimeDisplay] = useState('00:00');
+
+  const formatTime = (ms: number): string => {
+    const totalSeconds = Math.floor(ms / 1000);
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = totalSeconds % 60;
+    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+  };
+
+  const handleScore = (playerId: string, type: 'try' | 'conversion') => {
+    if (!activeGame || activeGame.isFinished) return;
+
+    const newEvent: ScoreEvent = {
+      id: uuidv4(),
+      playerId,
+      type,
+      points: RUGBY_RULES[type],
+      timestamp: Date.now(), // Record score time
+    };
+
+    const newGame: RugbyGame = {
+      ...activeGame,
+      scoreEvents: [...activeGame.scoreEvents, newEvent],
+    };
+    setActiveGame(newGame);
+    localStorage.setItem('activeGame', JSON.stringify(newGame));
+  };
+
+  const handleTogglePause = () => {
+    if (!activeGame) return;
+
+    const now = Date.now();
+    let newGame: RugbyGame;
+
+    if (activeGame.pauseTime === null) {
+      // --- PAUSE LOGIC ---
+      // 1. Calculate the total elapsed time up to the moment of pausing.
+      const currentElapsed = now - activeGame.startTime + activeGame.elapsedTimeAtPause;
+
+      newGame = {
+        ...activeGame,
+        pauseTime: now, // Record the absolute time of the pause
+        elapsedTimeAtPause: currentElapsed, // Store the running total time
+      };
+
+    } else {
+      // We only need to reset startTime back to 'now' because the running total 
+      // time is already saved in activeGame.elapsedTimeAtPause.
+
+      // Calculate the duration of the pause to ensure accuracy, 
+      // although we don't strictly need it for the state update,
+      // it helps to verify that the time has been tracked correctly.
+      const pauseDuration = now - activeGame.pauseTime;
+
+      newGame = {
+        ...activeGame,
+        // Reset startTime to NOW. The timer calculation (Date.now() - startTime)
+        // will start calculating the NEW segment from zero, adding to the 
+        // PREVIOUSLY saved elapsedTimeAtPause.
+        startTime: now,
+        pauseTime: null,
+        // elapsedTimeAtPause REMAINS the same total time as when it was paused.
+      };
+    }
+
+    setActiveGame(newGame);
+    localStorage.setItem('activeGame', JSON.stringify(newGame));
+  };
+
+  const handleOpponentScore = (type: 'try' | 'conversion') => {
+    if (!activeGame || activeGame.isFinished) return;
+
+    const points = RUGBY_RULES[type];
+
+    const newGame: RugbyGame = {
+      ...activeGame,
+      // Increment the opponent's score
+      opponentScore: activeGame.opponentScore + points,
+    };
+
+    setActiveGame(newGame);
+    localStorage.setItem('activeGame', JSON.stringify(newGame));
+  };
+
+  const finishGame = () => {
+    if (!activeGame) return;
+    // Step 1: Stop the timer (if running) and save the final elapsed time
+    const now = Date.now();
+    let finalElapsed = activeGame.elapsedTimeAtPause;
+
+    // If the game was running when the button was pressed, calculate the last segment of time
+    if (activeGame.pauseTime === null && !activeGame.isFinished) {
+      finalElapsed = activeGame.elapsedTimeAtPause + (now - activeGame.startTime);
+    }
+
+    // Step 2: Update the activeGame object with the final time and finished status
+    const finalActiveGame: RugbyGame = {
+      ...activeGame,
+      isFinished: true,
+      pauseTime: null,
+      // This is the total time elapsed for the whole game
+      elapsedTimeAtPause: finalElapsed,
+    };
+
+    setActiveGame(finalActiveGame);
+    localStorage.setItem('activeGame', JSON.stringify(finalActiveGame));
+
+    // Step 3: Open the comment collection modal
+    setIsFinishModalOpen(true);
+  };
+
+  // --- INITIALIZE GAME FUNCTION ---
+  const initializeNewGame = () => {
+    // 1. Get opponent name via simple browser prompt (or a dedicated modal/form)
+    const opponent = prompt("Enter the opponent's team name:") || 'Opponent Team';
+
+    // 2. Clear any lingering active game data from LocalStorage
+    //    (This ensures a clean start if the browser crashed before finishing the last game)
+    localStorage.removeItem('activeGame');
+
+    const now = Date.now();
+
+    const newGame: RugbyGame = {
+      id: uuidv4(),
+      opponent: opponent,
+      opponentScore: 0,
+      startTime: now, // Start the game immediately
+      pauseTime: null,
+      elapsedTimeAtPause: 0, // No time has passed yet
+      isFinished: false,
+      scoreEvents: [],
+      comments: '',
+    };
+
+    // 3. Set the new game in state and save it to LocalStorage (as activeGame)
+    setActiveGame(newGame);
+    localStorage.setItem('activeGame', JSON.stringify(newGame));
+  };
+
+  const calculatedTotalScore = useMemo(() => {
+    return activeGame?.scoreEvents.reduce((total, event) => total + event.points, 0) || 0;
+  }, [activeGame]);
+
+  // --- RENDERING ---
+  if (!activeGame) {
+    return (<div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+      <h1 className="text-3xl font-extrabold text-indigo-700 mb-6">
+        U13 Rugby Scorekeeper
+      </h1>
+      <p className="text-gray-600 mb-8 text-lg text-center max-w-sm">
+        Track match time, score player tries, and save game history.
+      </p>
+
+      {/* YOUR STYLED START BUTTON */}
+      <button
+        className='text-center text-xl bg-green-500 hover:bg-green-600 active:bg-green-700 
+                             text-white font-bold h-20 w-60 m-4 p-4 rounded-2xl shadow-lg 
+                             transition duration-150 ease-in-out'
+        onClick={initializeNewGame}
+      >
+        Start New Game
+      </button>
+
+      <div className="w-full max-w-xl mt-10">
+        <HistoryViewer games={historicGames} setGames={setHistoricGames} />
+      </div>
+    </div>)
+  }
+
+  const handleSaveFinalGame = () => {
+    if (!activeGame) return;
+
+    // 1. Create the final game object with the collected comment
+    const finishedGameWithComment: RugbyGame = {
+      ...activeGame,
+      comments: postGameComment,
+    };
+
+    // 2. Save to history
+    setHistoricGames((prev: RugbyGame[]) => [finishedGameWithComment, ...prev]);
+
+    // 3. Clear active game state and LocalStorage
+    setActiveGame(null);
+    localStorage.removeItem('activeGame');
+
+    // 4. Reset modal state
+    setIsFinishModalOpen(false);
+    setPostGameComment('');
+  };
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="flex flex-col items-center min-h-screen bg-blue-300 p-4">
+      {/* 1. Use the GameTimer to CALCULATE the time (It will call the setter below) */}
+
+      {/* 2. Integrate the elapsedTimeDisplay into the score banner */}
+      <div className="score-display text-center my-4 w-full flex justify-around items-center">
+        {/* OUR SCORE */}
+        <div className="flex flex-col items-center">
+          <h1 className="text-4xl font-black text-gray-800">
+            <span className="text-green-600">{calculatedTotalScore}</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+          <div className="text-sm text-gray-500 font-medium mt-1">Our Team</div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* DYNAMIC TIMER DISPLAY (Replaces the '|') */}
+        <span className="text-2xl font-bold tabular-nums">
+          <GameTimer
+            game={activeGame}
+            onTimerUpdate={(ms) => {
+              // This is called every second by the timer component
+              setElapsedTimeDisplay(formatTime(ms));
+            }}
+          />
+
+        </span>
+
+        {/* OPPONENT SCORE */}
+        <div className="flex flex-col items-center">
+          <h1 className="text-4xl font-black text-gray-800">
+            <span className="text-red-600">{activeGame.opponentScore}</span>
+          </h1>
+          <div className="text-sm text-gray-500 font-medium mt-1">{activeGame.opponent}</div>
         </div>
-      </main>
+      </div>
+
+      <button
+        onClick={handleTogglePause}
+        className={`w-full max-w-sm py-3 mb-4 text-white font-semibold rounded-lg shadow-md transition duration-150 ${activeGame.pauseTime === null
+          ? 'bg-yellow-500 hover:bg-yellow-600' // PAUSE color
+          : 'bg-indigo-600 hover:bg-indigo-700' // RESUME color
+          }`}
+      >
+        {activeGame.pauseTime === null ? '⏸️ Pause Game' : '▶️ Resume Game'}
+      </button>
+
+      <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+      <div className="flex justify-center gap-6 mb-6">
+        <button
+          onClick={() => handleOpponentScore('try')}
+          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition shadow-md"
+        >
+          Opponent Try
+        </button>
+        {/* <button
+          onClick={() => handleOpponentScore('conversion')}
+          className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-medium rounded-lg transition shadow-md"
+        >
+          Opponent Conversion (+2)
+        </button> */}
+      </div>
+
+      <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+
+      <div className="grid grid-cols-4 gap-3 w-full max-w-xl mb-6">
+        {U13_PLAYERS.map(player => (
+          <div key={player.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+            <p className="font-semibold text-lg text-gray-800 truncate mb-2">{player.name}</p>
+            <div className="flex justify-between gap-2">
+              <button
+                onClick={() => handleScore(player.id, 'try')}
+                className="flex-1 py-2 bg-green-500 w-100 hover:bg-green-600 text-white text-sm font-medium rounded-md transition shadow-sm"
+              >
+                Try
+              </button>
+              {/* <button
+                onClick={() => handleScore(player.id, 'conversion')}
+                className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition shadow-sm"
+              >
+                Conversion (+2)
+              </button> */}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* END GAME BUTTON */}
+      <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+
+      <button
+        className="w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"
+        onClick={finishGame}
+      >
+        🏁 End Match and Save
+      </button>
+
+      <FinishGameModal
+        isOpen={isFinishModalOpen}
+        onClose={() => setIsFinishModalOpen(false)}
+        onSave={handleSaveFinalGame}
+        comment={postGameComment}
+        setComment={setPostGameComment}
+        finalScore={calculatedTotalScore - activeGame.opponentScore} // Example: Our score minus their score
+      />
+
+      {/* History Component */}
+      <div className="w-full max-w-xl mt-8">
+        <HistoryViewer games={historicGames} setGames={setHistoricGames} />
+      </div>
     </div>
   );
 }
