@@ -259,6 +259,54 @@ export default function ScorekeeperApp() {
     setPostGameComment('');
   };
 
+  const handleUndoLastScore = () => {
+    if (!activeGame || activeGame.scoreEvents.length === 0) return;
+
+    const { scoreEvents } = activeGame;
+
+    // 1. Find the score event with the latest timestamp
+    const lastScoreEvent = scoreEvents.reduce((latest, current) => {
+      return (current.timestamp > latest.timestamp) ? current : latest;
+    }, scoreEvents[0]);
+
+    // 2. Filter the score events to exclude the last one found
+    const updatedScoreEvents = scoreEvents.filter(event => event.id !== lastScoreEvent.id);
+
+    // 3. Create the new game state
+    const newGame: RugbyGame = {
+      ...activeGame,
+      scoreEvents: updatedScoreEvents,
+    };
+
+    // 4. Update state and persistence
+    setActiveGame(newGame);
+    localStorage.setItem('activeGame', JSON.stringify(newGame));
+  };
+
+  const handleUndoOpponentScore = () => {
+    if (!activeGame || activeGame.opponentScore <= 0) return;
+
+    // This is simpler as we don't track individual opponent events, 
+    // we must prompt or ask the user which amount to undo.
+    // For simplicity, we'll implement a single-point undo (undo last point total)
+
+    // In a real app, you'd track opponent events too, but since we don't, 
+    // we'll make a simplification: undo the largest typical score (try=5 points) 
+    // and let the user correct it later, or prompt for the amount.
+
+    // For robust scoring, the best approach is to prompt the user:
+    const undoAmount = parseInt(prompt("Enter points to subtract from Opponent Score (e.g., 5 or 2):") || '0');
+
+    if (undoAmount > 0) {
+      const newScore = Math.max(0, activeGame.opponentScore - undoAmount);
+      const newGame: RugbyGame = {
+        ...activeGame,
+        opponentScore: newScore,
+      };
+      setActiveGame(newGame);
+      localStorage.setItem('activeGame', JSON.stringify(newGame));
+    }
+  };
   return (
     <div className="flex flex-col items-center min-h-screen bg-blue-300 p-4">
       {/* 1. Use the GameTimer to CALCULATE the time (It will call the setter below) */}
@@ -270,6 +318,17 @@ export default function ScorekeeperApp() {
           <h1 className="text-4xl font-black text-gray-800">
             <span className="text-green-600">{calculatedTotalScore}</span>
           </h1>
+          <button
+            onClick={handleUndoLastScore}
+            disabled={calculatedTotalScore === 0}
+            className={`p-1 rounded-full text-white transition shadow-md 
+                            ${calculatedTotalScore > 0 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-300 cursor-not-allowed'}`}
+            title="Undo Last Score"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+            </svg>
+          </button>
           <div className="text-sm text-gray-500 font-medium mt-1">Our Team</div>
         </div>
 
@@ -285,6 +344,18 @@ export default function ScorekeeperApp() {
           <h1 className="text-4xl font-black text-gray-800">
             <span className="text-red-600">{activeGame.opponentScore}</span>
           </h1>
+          {/* UNDO OPPONENT SCORE BUTTON */}
+          <button
+            onClick={handleUndoOpponentScore}
+            disabled={activeGame.opponentScore === 0}
+            className={`p-1 rounded-full text-white transition shadow-md 
+                            ${activeGame.opponentScore > 0 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-300 cursor-not-allowed'}`}
+            title="Undo Opponent Score"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+            </svg>
+          </button>
           <div className="text-sm text-gray-500 font-medium mt-1">{activeGame.opponent}</div>
         </div>
       </div>
