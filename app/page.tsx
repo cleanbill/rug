@@ -1,12 +1,16 @@
 // pages/index.tsx (Main App View)
 'use client';
 import { useState, useMemo } from 'react';
-import { RugbyGame, ScoreEvent, RUGBY_RULES, PLAYERS } from './types';
+import { RugbyGame, ScoreEvent, RUGBY_RULES, PLAYERS, AnimationData } from './types';
 import GameTimer from './components/Timer';
 import { v4 as uuidv4 } from 'uuid';
 import HistoryViewer from './components/HistoryViewer';
 import { useLocalStorage } from 'usehooks-ts';
 import FinishGameModal from './components/FinishGameModal';
+import StartGameModal from './components/StartGameModel';
+import TryAnimationOverlay from './components/TryAnimationOverlay';
+
+
 
 
 export default function ScorekeeperApp() {
@@ -14,9 +18,33 @@ export default function ScorekeeperApp() {
   const [postGameComment, setPostGameComment] = useState('');
   const [activeGame, setActiveGame] = useState<RugbyGame | null>(null);
   const [historicGames, setHistoricGames] = useLocalStorage('rugby_history', new Array<RugbyGame>());
+  const [isStartModalOpen, setIsStartModalOpen] = useState(false); // NEW STATE for the Start Modal
+  const [opponentNameInput, setOpponentNameInput] = useState(''); // NEW STATE for modal input
+  const [animationData, setAnimationData] = useState<AnimationData | null>(null);
+  const startNewGameFlow = () => {
+    setIsStartModalOpen(true);
+  };
 
-  const handleScore = (playerId: string, type: 'try' | 'conversion') => {
+  const handleScore = (playerId: string, type: 'try' | 'conversion', event: React.MouseEvent<HTMLButtonElement>) => {
     if (!activeGame || activeGame.isFinished) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    // Start the animation at the center of the button
+    const startX = rect.left + rect.width / 2;
+    const startY = rect.top + rect.height / 2;
+
+    // Set the animation data
+    setAnimationData({
+      type: type.toUpperCase() as 'TRY' | 'CONVERSION',
+      startX,
+      startY,
+    });
+
+    // Auto-dismiss the animation after 1.5 seconds
+    setTimeout(() => {
+      setAnimationData(null);
+    }, 1500);
 
     const newEvent: ScoreEvent = {
       id: uuidv4(),
@@ -32,6 +60,29 @@ export default function ScorekeeperApp() {
     };
     setActiveGame(newGame);
     localStorage.setItem('activeGame', JSON.stringify(newGame));
+  };
+
+  const handleGameSetup = (opponentName: string) => {
+    // We can now remove the prompt() call as the name comes from the argument
+
+    // ... existing initialization logic ...
+    const newGame: RugbyGame = {
+      id: uuidv4(),
+      opponent: opponentName || 'Opponent Team', // Use the collected name
+      startTime: Date.now(),
+      pauseTime: null,
+      elapsedTimeAtPause: 0,
+      opponentScore: 0,
+      isFinished: false,
+      scoreEvents: [],
+      comments: '',
+    };
+
+    setActiveGame(newGame);
+    localStorage.setItem('activeGame', JSON.stringify(newGame));
+
+    setIsStartModalOpen(false); // Close the modal
+    setOpponentNameInput(''); // Clear the input state
   };
 
   const handleTogglePause = () => {
@@ -117,33 +168,33 @@ export default function ScorekeeperApp() {
     setIsFinishModalOpen(true);
   };
 
-  // --- INITIALIZE GAME FUNCTION ---
-  const initializeNewGame = () => {
-    // 1. Get opponent name via simple browser prompt (or a dedicated modal/form)
-    const opponent = prompt("Enter the opponent's team name:") || 'Opponent Team';
+  // // --- INITIALIZE GAME FUNCTION ---
+  // const initializeNewGame = () => {
+  //   // 1. Get opponent name via simple browser prompt (or a dedicated modal/form)
+  //   const opponent = prompt("Enter the opponent's team name:") || 'Opponent Team';
 
-    // 2. Clear any lingering active game data from LocalStorage
-    //    (This ensures a clean start if the browser crashed before finishing the last game)
-    localStorage.removeItem('activeGame');
+  //   // 2. Clear any lingering active game data from LocalStorage
+  //   //    (This ensures a clean start if the browser crashed before finishing the last game)
+  //   localStorage.removeItem('activeGame');
 
-    const now = Date.now();
+  //   const now = Date.now();
 
-    const newGame: RugbyGame = {
-      id: uuidv4(),
-      opponent: opponent,
-      opponentScore: 0,
-      startTime: now, // Start the game immediately
-      pauseTime: null,
-      elapsedTimeAtPause: 0, // No time has passed yet
-      isFinished: false,
-      scoreEvents: [],
-      comments: '',
-    };
+  //   const newGame: RugbyGame = {
+  //     id: uuidv4(),
+  //     opponent: opponent,
+  //     opponentScore: 0,
+  //     startTime: now, // Start the game immediately
+  //     pauseTime: null,
+  //     elapsedTimeAtPause: 0, // No time has passed yet
+  //     isFinished: false,
+  //     scoreEvents: [],
+  //     comments: '',
+  //   };
 
-    // 3. Set the new game in state and save it to LocalStorage (as activeGame)
-    setActiveGame(newGame);
-    localStorage.setItem('activeGame', JSON.stringify(newGame));
-  };
+  //   // 3. Set the new game in state and save it to LocalStorage (as activeGame)
+  //   setActiveGame(newGame);
+  //   localStorage.setItem('activeGame', JSON.stringify(newGame));
+  // };
 
   const calculatedTotalScore = useMemo(() => {
     return activeGame?.scoreEvents.reduce((total, event) => total + event.points, 0) || 0;
@@ -164,10 +215,22 @@ export default function ScorekeeperApp() {
         className='text-center text-xl bg-green-500 hover:bg-green-600 active:bg-green-700 
                              text-white font-bold h-20 w-60 m-4 p-4 rounded-2xl shadow-lg 
                              transition duration-150 ease-in-out'
-        onClick={initializeNewGame}
+        onClick={startNewGameFlow}
       >
         Start New Game
       </button>
+
+      <StartGameModal
+        isOpen={isStartModalOpen}
+        onClose={() => setIsStartModalOpen(false)}
+
+        // --> IT IS PASSED HERE <--
+        onStart={handleGameSetup}
+
+        input={opponentNameInput}
+        setInput={setOpponentNameInput}
+      />
+
 
       <div className="w-full max-w-xl mt-10">
         <HistoryViewer games={historicGames} setGames={setHistoricGames} />
@@ -260,7 +323,7 @@ export default function ScorekeeperApp() {
             <p className="font-semibold text-lg text-gray-800 truncate mb-2">{player.name}</p>
             <div className="flex justify-between gap-2">
               <button
-                onClick={() => handleScore(player.id, 'try')}
+                onClick={(e) => handleScore(player.id, 'try', e)}
                 className="flex-1 py-2 bg-green-500 w-100 hover:bg-green-600 text-white text-sm font-medium rounded-md transition shadow-sm"
               >
                 Try
@@ -294,6 +357,8 @@ export default function ScorekeeperApp() {
         setComment={setPostGameComment}
         finalScore={calculatedTotalScore - activeGame.opponentScore} // Example: Our score minus their score
       />
+
+      <TryAnimationOverlay data={animationData} />
 
       {/* History Component */}
       <div className="w-full max-w-xl mt-8">

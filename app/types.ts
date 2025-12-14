@@ -24,6 +24,12 @@ export interface RugbyGame {
     comments: string;
 }
 
+export interface AnimationData {
+    type: 'TRY' | 'CONVERSION';
+    startX: number;
+    startY: number;
+}
+
 // Player data (can be simple array of names/IDs)
 export const PLAYERS = [
     { id: 'p01', name: 'Ben' },
