@@ -1,6 +1,6 @@
 // pages/index.tsx (Main App View)
 'use client';
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { RugbyGame, ScoreEvent, RUGBY_RULES, PLAYERS, AnimationData } from './types';
 import GameTimer from './components/Timer';
 import { v4 as uuidv4 } from 'uuid';
@@ -9,6 +9,7 @@ import { useLocalStorage } from 'usehooks-ts';
 import FinishGameModal from './components/FinishGameModal';
 import StartGameModal from './components/StartGameModel';
 import TryAnimationOverlay from './components/TryAnimationOverlay';
+import Sync from './components/sync';
 
 
 
@@ -21,6 +22,13 @@ export default function ScorekeeperApp() {
   const [isStartModalOpen, setIsStartModalOpen] = useState(false); // NEW STATE for the Start Modal
   const [opponentNameInput, setOpponentNameInput] = useState(''); // NEW STATE for modal input
   const [animationData, setAnimationData] = useState<AnimationData | null>(null);
+  const [hasMounted, setHasMounted] = useState(false);
+
+
+  useEffect(() => {
+    setHasMounted(true);
+  }, []);
+
   const startNewGameFlow = () => {
     setIsStartModalOpen(true);
   };
@@ -168,74 +176,70 @@ export default function ScorekeeperApp() {
     setIsFinishModalOpen(true);
   };
 
-  // // --- INITIALIZE GAME FUNCTION ---
-  // const initializeNewGame = () => {
-  //   // 1. Get opponent name via simple browser prompt (or a dedicated modal/form)
-  //   const opponent = prompt("Enter the opponent's team name:") || 'Opponent Team';
-
-  //   // 2. Clear any lingering active game data from LocalStorage
-  //   //    (This ensures a clean start if the browser crashed before finishing the last game)
-  //   localStorage.removeItem('activeGame');
-
-  //   const now = Date.now();
-
-  //   const newGame: RugbyGame = {
-  //     id: uuidv4(),
-  //     opponent: opponent,
-  //     opponentScore: 0,
-  //     startTime: now, // Start the game immediately
-  //     pauseTime: null,
-  //     elapsedTimeAtPause: 0, // No time has passed yet
-  //     isFinished: false,
-  //     scoreEvents: [],
-  //     comments: '',
-  //   };
-
-  //   // 3. Set the new game in state and save it to LocalStorage (as activeGame)
-  //   setActiveGame(newGame);
-  //   localStorage.setItem('activeGame', JSON.stringify(newGame));
-  // };
-
   const calculatedTotalScore = useMemo(() => {
     return activeGame?.scoreEvents.reduce((total, event) => total + event.points, 0) || 0;
   }, [activeGame]);
 
+  const overwriteData = (incoming: any) => {
+    const data = incoming.value.data;
+    console.log('overwrite:', isFinishModalOpen, postGameComment, activeGame, historicGames, isStartModalOpen, opponentNameInput);
+    setIsFinishModalOpen(data.isFinishModalOpen);
+    setPostGameComment(data.postGameComment);
+    setActiveGame(data.activeGame);
+    setHistoricGames(data.historicGames);
+    setIsStartModalOpen(data.isStartModalOpen);
+    setOpponentNameInput(data.opponentNameInput);
+  }
+
+  if (!hasMounted) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100">
+        <p className="text-gray-500 font-bold animate-pulse">Loading Rugby Scorekeeper...</p>
+      </div>
+    );
+  }
+
   // --- RENDERING ---
   if (!activeGame) {
-    return (<div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
-      <h1 className="text-3xl font-extrabold text-indigo-700 mb-6">
-        Rugby Scorekeeper
-      </h1>
-      <p className="text-gray-600 mb-8 text-lg text-center max-w-sm">
-        Track match time, score player tries, and save game history.
-      </p>
+    return (
+      <>
+        <Sync name='rug' overwriteData={overwriteData} data={{
+          isFinishModalOpen, postGameComment, activeGame, historicGames, isStartModalOpen, opponentNameInput
+        }} ></Sync>
+        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50 p-4">
+          <h1 className="text-3xl font-extrabold text-indigo-700 mb-6">
+            Rugby Scorekeeper
+          </h1>
+          <p className="text-gray-600 mb-8 text-lg text-center max-w-sm">
+            Track match time, score player tries, and save game history.
+          </p>
 
-      {/* YOUR STYLED START BUTTON */}
-      <button
-        className='text-center text-xl bg-green-500 hover:bg-green-600 active:bg-green-700 
+          {/* YOUR STYLED START BUTTON */}
+          <button
+            className='text-center text-xl bg-green-500 hover:bg-green-600 active:bg-green-700 
                              text-white font-bold h-20 w-60 m-4 p-4 rounded-2xl shadow-lg 
                              transition duration-150 ease-in-out'
-        onClick={startNewGameFlow}
-      >
-        Start New Game
-      </button>
+            onClick={startNewGameFlow}
+          >
+            Start New Game
+          </button>
 
-      <StartGameModal
-        isOpen={isStartModalOpen}
-        onClose={() => setIsStartModalOpen(false)}
+          <StartGameModal
+            isOpen={isStartModalOpen}
+            onClose={() => setIsStartModalOpen(false)}
 
-        // --> IT IS PASSED HERE <--
-        onStart={handleGameSetup}
+            // --> IT IS PASSED HERE <--
+            onStart={handleGameSetup}
 
-        input={opponentNameInput}
-        setInput={setOpponentNameInput}
-      />
+            input={opponentNameInput}
+            setInput={setOpponentNameInput}
+          />
 
 
-      <div className="w-full max-w-xl mt-10">
-        <HistoryViewer games={historicGames} setGames={setHistoricGames} />
-      </div>
-    </div>)
+          <div className="w-full max-w-xl mt-10">
+            <HistoryViewer games={historicGames} setGames={setHistoricGames} />
+          </div>
+        </div></>)
   }
 
   const handleSaveFinalGame = () => {
@@ -308,133 +312,139 @@ export default function ScorekeeperApp() {
     }
   };
   return (
-    <div className="flex flex-col items-center min-h-screen bg-blue-300 p-4">
-      {/* 1. Use the GameTimer to CALCULATE the time (It will call the setter below) */}
+    <>
+      <Sync name='rug' overwriteData={overwriteData} data={{
+        isFinishModalOpen, postGameComment, activeGame, historicGames, isStartModalOpen, opponentNameInput
+      }} ></Sync>
 
-      {/* 2. Integrate the elapsedTimeDisplay into the score banner */}
-      <div className="score-display text-center my-4 w-full flex justify-around items-center">
-        {/* OUR SCORE */}
-        <div className="flex flex-col items-center">
-          <h1 className="text-4xl font-black text-gray-800">
-            <span className="text-green-600">{calculatedTotalScore}</span>
-          </h1>
-          <button
-            onClick={handleUndoLastScore}
-            disabled={calculatedTotalScore === 0}
-            className={`p-1 rounded-full text-white transition shadow-md 
+      <div className="flex flex-col items-center min-h-screen bg-blue-300 p-4">
+        {/* 1. Use the GameTimer to CALCULATE the time (It will call the setter below) */}
+
+        {/* 2. Integrate the elapsedTimeDisplay into the score banner */}
+        <div className="score-display text-center my-4 w-full flex justify-around items-center">
+          {/* OUR SCORE */}
+          <div className="flex flex-col items-center">
+            <h1 className="text-4xl font-black text-gray-800">
+              <span className="text-green-600">{calculatedTotalScore}</span>
+            </h1>
+            <button
+              onClick={handleUndoLastScore}
+              disabled={calculatedTotalScore === 0}
+              className={`p-1 rounded-full text-white transition shadow-md 
                             ${calculatedTotalScore > 0 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-300 cursor-not-allowed'}`}
-            title="Undo Last Score"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-            </svg>
-          </button>
-          <div className="text-sm text-gray-500 font-medium mt-1">Our Team</div>
-        </div>
+              title="Undo Last Score"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              </svg>
+            </button>
+            <div className="text-sm text-gray-500 font-medium mt-1">Our Team</div>
+          </div>
 
-        <span className="text-2xl font-bold tabular-nums">
-          <GameTimer
-            game={activeGame}
-            onTimerUpdate={(ms) => { }}
-          />
+          <span className="text-2xl font-bold tabular-nums">
+            <GameTimer
+              game={activeGame}
+              onTimerUpdate={(ms) => { }}
+            />
 
-        </span>
+          </span>
 
-        <div className="flex flex-col items-center">
-          <h1 className="text-4xl font-black text-gray-800">
-            <span className="text-red-600">{activeGame.opponentScore}</span>
-          </h1>
-          {/* UNDO OPPONENT SCORE BUTTON */}
-          <button
-            onClick={handleUndoOpponentScore}
-            disabled={activeGame.opponentScore === 0}
-            className={`p-1 rounded-full text-white transition shadow-md 
+          <div className="flex flex-col items-center">
+            <h1 className="text-4xl font-black text-gray-800">
+              <span className="text-red-600">{activeGame.opponentScore}</span>
+            </h1>
+            {/* UNDO OPPONENT SCORE BUTTON */}
+            <button
+              onClick={handleUndoOpponentScore}
+              disabled={activeGame.opponentScore === 0}
+              className={`p-1 rounded-full text-white transition shadow-md 
                             ${activeGame.opponentScore > 0 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-300 cursor-not-allowed'}`}
-            title="Undo Opponent Score"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-            </svg>
-          </button>
-          <div className="text-sm text-gray-500 font-medium mt-1">{activeGame.opponent}</div>
+              title="Undo Opponent Score"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
+              </svg>
+            </button>
+            <div className="text-sm text-gray-500 font-medium mt-1">{activeGame.opponent}</div>
+          </div>
         </div>
-      </div>
 
-      <button
-        onClick={handleTogglePause}
-        className={`w-full max-w-sm py-3 mb-4 text-white font-semibold rounded-lg shadow-md transition duration-150 ${activeGame.pauseTime === null
-          ? 'bg-yellow-500 hover:bg-yellow-600' // PAUSE color
-          : 'bg-indigo-600 hover:bg-indigo-700' // RESUME color
-          }`}
-      >
-        {activeGame.pauseTime === null ? '⏸️ Pause Game' : '▶️ Resume Game'}
-      </button>
-
-      <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
-      <div className="flex justify-center gap-6 mb-6">
         <button
-          onClick={() => handleOpponentScore('try')}
-          className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition shadow-md"
+          onClick={handleTogglePause}
+          className={`w-full max-w-sm py-3 mb-4 text-white font-semibold rounded-lg shadow-md transition duration-150 ${activeGame.pauseTime === null
+            ? 'bg-yellow-500 hover:bg-yellow-600' // PAUSE color
+            : 'bg-indigo-600 hover:bg-indigo-700' // RESUME color
+            }`}
         >
-          Opponent Try
+          {activeGame.pauseTime === null ? '⏸️ Pause Game' : '▶️ Resume Game'}
         </button>
-        {/* <button
+
+        <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+        <div className="flex justify-center gap-6 mb-6">
+          <button
+            onClick={() => handleOpponentScore('try')}
+            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition shadow-md"
+          >
+            Opponent Try
+          </button>
+          {/* <button
           onClick={() => handleOpponentScore('conversion')}
           className="px-4 py-2 bg-red-700 hover:bg-red-800 text-white font-medium rounded-lg transition shadow-md"
         >
           Opponent Conversion (+2)
         </button> */}
-      </div>
+        </div>
 
-      <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+        <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
 
-      <div className="grid grid-cols-4 gap-3 w-full max-w-xl mb-6">
-        {PLAYERS.map(player => (
-          <div key={player.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-            <p className="font-semibold text-lg text-gray-800 truncate mb-2">{player.name}</p>
-            <div className="flex justify-between gap-2">
-              <button
-                onClick={(e) => handleScore(player.id, 'try', e)}
-                className="flex-1 py-2 bg-green-500 w-100 hover:bg-green-600 text-white text-sm font-medium rounded-md transition shadow-sm"
-              >
-                Try
-              </button>
-              {/* <button
+        <div className="grid grid-cols-4 gap-3 w-full max-w-xl mb-6">
+          {PLAYERS.map(player => (
+            <div key={player.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
+              <p className="font-semibold text-lg text-gray-800 truncate mb-2">{player.name}</p>
+              <div className="flex justify-between gap-2">
+                <button
+                  onClick={(e) => handleScore(player.id, 'try', e)}
+                  className="flex-1 py-2 bg-green-500 w-100 hover:bg-green-600 text-white text-sm font-medium rounded-md transition shadow-sm"
+                >
+                  Try
+                </button>
+                {/* <button
                 onClick={() => handleScore(player.id, 'conversion')}
                 className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition shadow-sm"
               >
                 Conversion (+2)
               </button> */}
+              </div>
             </div>
-          </div>
-        ))}
+          ))}
+        </div>
+
+        {/* END GAME BUTTON */}
+        <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+
+        <button
+          className="w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"
+          onClick={finishGame}
+        >
+          🏁 End Match and Save
+        </button>
+
+        <FinishGameModal
+          isOpen={isFinishModalOpen}
+          onClose={() => setIsFinishModalOpen(false)}
+          onSave={handleSaveFinalGame}
+          comment={postGameComment}
+          setComment={setPostGameComment}
+          finalScore={calculatedTotalScore - activeGame.opponentScore} // Example: Our score minus their score
+        />
+
+        <TryAnimationOverlay data={animationData} />
+
+        {/* History Component */}
+        <div className="w-full max-w-xl mt-8">
+          <HistoryViewer games={historicGames} setGames={setHistoricGames} />
+        </div>
       </div>
-
-      {/* END GAME BUTTON */}
-      <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
-
-      <button
-        className="w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"
-        onClick={finishGame}
-      >
-        🏁 End Match and Save
-      </button>
-
-      <FinishGameModal
-        isOpen={isFinishModalOpen}
-        onClose={() => setIsFinishModalOpen(false)}
-        onSave={handleSaveFinalGame}
-        comment={postGameComment}
-        setComment={setPostGameComment}
-        finalScore={calculatedTotalScore - activeGame.opponentScore} // Example: Our score minus their score
-      />
-
-      <TryAnimationOverlay data={animationData} />
-
-      {/* History Component */}
-      <div className="w-full max-w-xl mt-8">
-        <HistoryViewer games={historicGames} setGames={setHistoricGames} />
-      </div>
-    </div>
+    </>
   );
 }

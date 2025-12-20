@@ -31,6 +31,15 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
         setCurrentComment(game.comments || '');
     };
 
+    const handleDeleteGame = (gameId: string) => {
+        setGames(prevGames =>
+            prevGames.filter(game => game.id !== gameId)
+        );
+        setEditingGameId(null);
+        setCurrentComment('');
+
+    }
+
     const handleSaveComment = (gameId: string) => {
         setGames(prevGames =>
             prevGames.map(game =>
@@ -41,7 +50,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
         setCurrentComment('');
     };
 
-    if (games.length === 0) {
+    if (!games || games.length === 0) {
         return (
             <div className="text-center p-4 bg-white rounded-xl shadow-md border-gray-200 border">
                 <p className="text-gray-500 font-medium">No completed games yet.</p>
@@ -128,6 +137,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                                     >
                                         {game.comments ? 'Edit Notes' : '➕ Add Notes'}
                                     </button>
+                                    <button onClick={() => handleDeleteGame(game.id)} className='float-right rounded-xl bg-red-300 w-6 h-6 text-xs'>X</button>
                                 </div>
                             )}
                         </div>
