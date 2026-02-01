@@ -1,7 +1,7 @@
 // components/StartGameModal.tsx
 'use client';
 
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 interface StartGameModalProps {
     // Controls whether the modal is visible
@@ -9,7 +9,7 @@ interface StartGameModalProps {
     // Function to close the modal without starting the game
     onClose: () => void;
     // Function to start the game, accepts the opponent's name as an argument
-    onStart: (opponentName: string) => void;
+    onStart: (opponentName: string, home: boolean) => void;
     // State for the controlled input field (name of the opponent)
     input: string;
     // Setter for the input state
@@ -19,6 +19,7 @@ interface StartGameModalProps {
 export default function StartGameModal({ isOpen, onClose, onStart, input, setInput }: StartGameModalProps) {
     // 1. Create a ref to attach to the input element
     const inputRef = useRef<HTMLInputElement>(null);
+    const [isHome, setIsHome] = useState(true);
 
     // 2. Use useEffect to focus the input when the modal opens
     useEffect(() => {
@@ -41,7 +42,7 @@ export default function StartGameModal({ isOpen, onClose, onStart, input, setInp
 
         // Call the onStart function in the parent, passing the trimmed input.
         // Falls back to a default name if the input is empty or just whitespace.
-        onStart(input.trim() || 'Opponent Team');
+        onStart(input.trim() || 'Opponent Team', isHome);
     };
 
     return (
@@ -52,8 +53,36 @@ export default function StartGameModal({ isOpen, onClose, onStart, input, setInp
                 // Modal container: white, rounded, centered, shadow, max-width for mobile
                 className="bg-white rounded-xl p-6 m-4 w-11/12 max-w-sm shadow-2xl transform scale-100 transition-transform duration-300"
             >
-                <h3 className="text-2xl font-bold text-indigo-700 mb-6 border-b pb-2" > Start New Match </h3>
+                <h3 className="text-2xl font-bold text-indigo-700 border-b pb-2" > Start New Match </h3>
 
+                {isHome && <div className="text-center w-full font-bold text-indigo-500">- Home -</div>}
+                {!isHome && <div className="text-center w-full font-bold text-indigo-500">- Away -</div>}
+                <div className="flex justify-between space-x-3 mb-3">
+                    {/* Hidden input ensures the value is sent on form submit */}
+                    <input type="hidden" name="location" value={isHome ? "home" : "away"} />
+
+                    <button
+                        type="button" // Prevent default form submission on click
+                        onClick={() => setIsHome(true)}
+                        className={`w-1/2 h-10 font-black uppercase border-2 border-black transition-all ${isHome
+                            ? "bg-blue-500 shadow-none translate-x-1 translate-y-1"
+                            : "bg-blue-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1"
+                            }`}
+                    >
+                        Home
+                    </button>
+
+                    <button
+                        type="button"
+                        onClick={() => setIsHome(false)}
+                        className={`w-1/2 h-10 font-black uppercase border-2 border-black transition-all ${!isHome
+                            ? "bg-blue-500 shadow-none translate-x-1 translate-y-1"
+                            : "bg-blue-300 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] hover:-translate-y-1"
+                            }`}
+                    >
+                        Away
+                    </button>
+                </div>
                 < label htmlFor="opponent" className="block text-base font-medium text-gray-700 mb-2" >
                     Opponent Team Name:
                 </label>
@@ -63,7 +92,7 @@ export default function StartGameModal({ isOpen, onClose, onStart, input, setInp
                     value={input}
                     onChange={(e) => setInput(e.target.value)
                     }
-                    placeholder="e.g., The Hawks U12"
+                    placeholder="e.g., Southwell City U12"
                     ref={inputRef}
                     required
                     // Tailwind styling for input field

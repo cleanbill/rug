@@ -10,6 +10,7 @@ import FinishGameModal from './components/FinishGameModal';
 import StartGameModal from './components/StartGameModel';
 import TryAnimationOverlay from './components/TryAnimationOverlay';
 import Sync from './components/sync';
+import ScoreUnit from './components/ScoreUnit';
 
 
 
@@ -23,6 +24,7 @@ export default function ScorekeeperApp() {
   const [opponentNameInput, setOpponentNameInput] = useState(''); // NEW STATE for modal input
   const [animationData, setAnimationData] = useState<AnimationData | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
+  const [isHome, setIsHome] = useState(activeGame?.home);
 
 
   useEffect(() => {
@@ -67,10 +69,11 @@ export default function ScorekeeperApp() {
       scoreEvents: [...activeGame.scoreEvents, newEvent],
     };
     setActiveGame(newGame);
+    setIsHome(newGame.home);
     localStorage.setItem('activeGame', JSON.stringify(newGame));
   };
 
-  const handleGameSetup = (opponentName: string) => {
+  const handleGameSetup = (opponentName: string, home: boolean) => {
     // We can now remove the prompt() call as the name comes from the argument
 
     // ... existing initialization logic ...
@@ -84,8 +87,10 @@ export default function ScorekeeperApp() {
       isFinished: false,
       scoreEvents: [],
       comments: '',
+      home
     };
 
+    setIsHome(newGame.home);
     setActiveGame(newGame);
     localStorage.setItem('activeGame', JSON.stringify(newGame));
 
@@ -186,6 +191,7 @@ export default function ScorekeeperApp() {
     setIsFinishModalOpen(data.isFinishModalOpen);
     setPostGameComment(data.postGameComment);
     setActiveGame(data.activeGame);
+    setIsHome(data.activeGame.home);
     setHistoricGames(data.historicGames);
     setIsStartModalOpen(data.isStartModalOpen);
     setOpponentNameInput(data.opponentNameInput);
@@ -321,52 +327,21 @@ export default function ScorekeeperApp() {
         {/* 1. Use the GameTimer to CALCULATE the time (It will call the setter below) */}
 
         {/* 2. Integrate the elapsedTimeDisplay into the score banner */}
-        <div className="score-display text-center my-4 w-full flex justify-around items-center">
-          {/* OUR SCORE */}
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl font-black text-gray-800">
-              <span className="text-green-600">{calculatedTotalScore}</span>
-            </h1>
-            <button
-              onClick={handleUndoLastScore}
-              disabled={calculatedTotalScore === 0}
-              className={`p-1 rounded-full text-white transition shadow-md 
-                            ${calculatedTotalScore > 0 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-300 cursor-not-allowed'}`}
-              title="Undo Last Score"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-              </svg>
-            </button>
-            <div className="text-sm text-gray-500 font-medium mt-1">Our Team</div>
-          </div>
+        <div className="score-display text-center my-4 w-full grid grid-cols-3 h-30 justify-around items-center">
 
-          <span className="text-2xl font-bold tabular-nums">
+          {!isHome && <ScoreUnit score={activeGame.opponentScore} label={activeGame.opponent} onUndo={handleUndoOpponentScore} colourClass={'text-red-600'}></ScoreUnit>}
+          {isHome && <ScoreUnit score={calculatedTotalScore} label={'Southwell City'} onUndo={handleUndoLastScore} colourClass={'text-green-600'}></ScoreUnit>}
+
+          <span className="text-2xl font-bold tabular-nums w-38 justify-self-center">
             <GameTimer
               game={activeGame}
               onTimerUpdate={(ms) => { }}
             />
 
           </span>
+          {isHome && <ScoreUnit score={activeGame.opponentScore} label={activeGame.opponent} onUndo={handleUndoOpponentScore} colourClass={'text-red-600'}></ScoreUnit>}
+          {!isHome && <ScoreUnit score={calculatedTotalScore} label={'Southwell City'} onUndo={handleUndoLastScore} colourClass={'text-green-600'}></ScoreUnit>}
 
-          <div className="flex flex-col items-center">
-            <h1 className="text-4xl font-black text-gray-800">
-              <span className="text-red-600">{activeGame.opponentScore}</span>
-            </h1>
-            {/* UNDO OPPONENT SCORE BUTTON */}
-            <button
-              onClick={handleUndoOpponentScore}
-              disabled={activeGame.opponentScore === 0}
-              className={`p-1 rounded-full text-white transition shadow-md 
-                            ${activeGame.opponentScore > 0 ? 'bg-yellow-500 hover:bg-yellow-600' : 'bg-gray-300 cursor-not-allowed'}`}
-              title="Undo Opponent Score"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-5 h-5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M9 15L3 9m0 0l6-6M3 9h12a6 6 0 010 12h-3" />
-              </svg>
-            </button>
-            <div className="text-sm text-gray-500 font-medium mt-1">{activeGame.opponent}</div>
-          </div>
         </div>
 
         <button
@@ -420,7 +395,19 @@ export default function ScorekeeperApp() {
         </div>
 
         {/* END GAME BUTTON */}
-        <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+        <h3 className="text-xl font-bold text-gray-700 mb-2"></h3>
+        <button
+          type="button" // Prevent default form submission on click
+          onClick={() => setIsHome(!isHome)}
+          className={`w-full max-w-sm py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition mb-2 ${isHome
+            ? ""
+            : "w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"
+            }`}
+        >
+          {isHome && <div>Home</div>}
+          {!isHome && <div>Away</div>}
+        </button>
+
 
         <button
           className="w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"

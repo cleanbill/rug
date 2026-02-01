@@ -22,6 +22,7 @@ export interface RugbyGame {
     isFinished: boolean;
     scoreEvents: ScoreEvent[];
     comments: string;
+    home: boolean;
 }
 
 export interface AnimationData {

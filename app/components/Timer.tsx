@@ -46,7 +46,6 @@ export default function GameTimer({ game, onTimerUpdate }: TimerProps) {
 
     return (
         <div className="w-full text-center py-4 px-2 mb-4 bg-white rounded-xl shadow-md border-b-4 border-indigo-500">
-            <div className="text-sm text-gray-600 font-semibold uppercase">Elapsed Time:</div>
             <span className="text-5xl font-extrabold text-indigo-900 tracking-wider tabular-nums">
                 {formatTime(elapsed)}
             </span>
