@@ -148,6 +148,15 @@ export default function ScorekeeperApp() {
   };
 
   const handleGameSetup = (opponentName: string, home: boolean) => {
+    // 1. Reset all the log arrays to empty
+    setSubHistory([]);
+    setTackleHistory([]);
+    setScoreHistory([]);
+
+    // 2. Reset the stats/counts
+    setTackleCounts({});
+    setPlayTimes({});
+
     const newGame: RugbyGame = {
       id: uuidv4(),
       opponent: opponentName || 'Opponent Team', // Use the collected name
@@ -159,9 +168,13 @@ export default function ScorekeeperApp() {
       scoreEvents: [],
       comments: '',
       home,
+      subHistory: [],
+      tackleHistory: [],
+      scoreHistory: []
     };
 
     setIsHome(newGame.home);
+    setPlayingIds(PLAYERS.map(p => p.id));
     const initialLastOn: Record<string, number | null> = {};
     PLAYERS.forEach(p => initialLastOn[p.id] = null);
     setLastOnTime(initialLastOn);
