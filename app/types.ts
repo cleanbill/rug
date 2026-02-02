@@ -11,18 +11,42 @@ export interface ScoreEvent {
     timestamp: number; // Time when the score was recorded (ms)
 }
 
-// The core data model for a single game
+export interface SubLogEntry {
+    id: string;
+    name: string;
+    type: 'ON' | 'OFF';
+    time: string;
+}
+
+export interface TackleLogEntry {
+    id: string;
+    name: string;
+    time: string;
+}
+
+export interface ScoreLogEntry {
+    id: string;
+    name: string;
+    type: string; // 'TRY' or 'CONVERSION'
+    time: string;
+}
+
 export interface RugbyGame {
     id: string;
     opponent: string;
     opponentScore: number;
-    startTime: number; // Absolute timestamp (Date.now()) when the game started
-    pauseTime: number | null; // Absolute timestamp if game is paused
-    elapsedTimeAtPause: number; // The total elapsed time when paused
+    startTime: number;
+    pauseTime: number | null;
+    elapsedTimeAtPause: number;
     isFinished: boolean;
     scoreEvents: ScoreEvent[];
     comments: string;
     home: boolean;
+    tackles?: Record<string, number>;
+    subHistory?: SubLogEntry[];
+    playtimeTotals?: Record<string, number>;
+    scoreHistory?: ScoreLogEntry[];
+    tackleHistory?: TackleLogEntry[];
 }
 
 export interface AnimationData {
@@ -31,8 +55,13 @@ export interface AnimationData {
     startY: number;
 }
 
+export type Player = {
+    id: string;
+    name: string;
+}
+
 // Player data (can be simple array of names/IDs)
-export const PLAYERS = [
+export const PLAYERS: Array<Player> = [
     { id: 'p01', name: 'Ben' },
     { id: 'p02', name: 'Cory' },
     { id: 'p03', name: 'Declan' },

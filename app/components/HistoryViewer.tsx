@@ -1,149 +1,128 @@
 'use client';
-
-import { useState } from 'react';
-import { RugbyGame, ScoreEvent, PLAYERS } from '../types';
+import React, { useState } from 'react';
+import { RugbyGame, PLAYERS } from '../types';
+import ScoreLog from './ScoreLog';
+import SubstitutionLog from './SubstitutionLog';
+import TackleLog from './TackleLog';
 
 interface HistoryViewerProps {
     games: RugbyGame[];
-    setGames: (updater: (prevGames: RugbyGame[]) => RugbyGame[]) => void;
+    setGames: React.Dispatch<React.SetStateAction<RugbyGame[]>>;
 }
 
-// Helper function to calculate total score for one game
-const calculateTotalScore = (events: ScoreEvent[]): number => {
-    return events.reduce((total, event) => total + event.points, 0);
-};
-
-// Helper to format duration
-const formatDuration = (elapsedTimeAtPause: number): string => {
-    const finalElapsedTime = elapsedTimeAtPause;
-    const totalSeconds = Math.floor(finalElapsedTime / 1000);
-    const minutes = Math.floor(totalSeconds / 60);
-    const seconds = totalSeconds % 60;
-    return `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-};
-
 export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
-    const [editingGameId, setEditingGameId] = useState<string | null>(null);
-    const [currentComment, setCurrentComment] = useState('');
+    const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
 
-    const handleEditComment = (game: RugbyGame) => {
-        setEditingGameId(game.id);
-        setCurrentComment(game.comments || '');
+    const deleteGame = (id: string) => {
+        if (confirm('Are you sure you want to delete this game record?')) {
+            setGames(prev => prev.filter(g => g.id !== id));
+        }
     };
 
-    const handleDeleteGame = (gameId: string) => {
-        setGames(prevGames =>
-            prevGames.filter(game => game.id !== gameId)
-        );
-        setEditingGameId(null);
-        setCurrentComment('');
-
-    }
-
-    const handleSaveComment = (gameId: string) => {
-        setGames(prevGames =>
-            prevGames.map(game =>
-                game.id === gameId ? { ...game, comments: currentComment } : game
-            )
-        );
-        setEditingGameId(null);
-        setCurrentComment('');
+    const getTopTackler = (tackles: Record<string, number> | undefined) => {
+        if (!tackles || Object.keys(tackles).length === 0) return "N/A";
+        const topId = Object.keys(tackles).reduce((a, b) => (tackles[a] > tackles[b] ? a : b));
+        const count = tackles[topId];
+        const player = PLAYERS.find(p => p.id === topId);
+        return player ? `${player.name} (${count})` : `Unknown (${count})`;
     };
 
-    if (!games || games.length === 0) {
-        return (
-            <div className="text-center p-4 bg-white rounded-xl shadow-md border-gray-200 border">
-                <p className="text-gray-500 font-medium">No completed games yet.</p>
-            </div>
-        );
-    }
+    const calculateOurScore = (game: RugbyGame) => {
+        return game.scoreEvents.reduce((total, event) => total + event.points, 0);
+    };
 
     return (
-        <div className="w-full mx-auto mt-8">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4 border-b pb-2">🏉 Game History</h2>
+        <div className="w-full space-y-4">
+            <h2 className="text-2xl font-black text-gray-800 uppercase tracking-tight mb-4">Match History</h2>
 
-            {games.map((game) => {
-                const totalScore = calculateTotalScore(game.scoreEvents);
-                const gameDate = new Date(game.startTime).toLocaleDateString();
-                const duration = formatDuration(game.elapsedTimeAtPause);
-                const finalScoreDifference = totalScore - game.opponentScore;
+            {games.length === 0 ? (
+                <div className="bg-white p-8 rounded-3xl border-2 border-dashed border-gray-200 text-center">
+                    <p className="text-gray-400 font-medium">No matches recorded yet.</p>
+                </div>
+            ) : (
+                games.map((game) => {
+                    const ourScore = calculateOurScore(game);
+                    const isExpanded = expandedGameId === game.id;
+                    const isWin = ourScore > game.opponentScore;
 
-                return (
-                    <div
-                        key={game.id}
-                        className="bg-white p-4 rounded-xl shadow-md mb-4 border-l-4 border-indigo-400"
-                    >
-                        <div className="game-summary border-b pb-3 mb-3 flex justify-between items-center">
-                            <div>
-                                <strong className="text-lg text-gray-900 block truncate">{game.opponent} Match</strong>
-                                <span className="text-sm text-gray-500">{gameDate} | Duration: {duration}</span>
-                            </div>
+                    return (
+                        <div
+                            key={game.id}
+                            className="bg-white rounded-3xl shadow-sm border border-gray-100 overflow-hidden transition-all"
+                        >
+                            {/* Main Summary Bar */}
                             <div
-                                className={`px-3 py-1 rounded-full text-white font-bold text-lg 
-                                ${finalScoreDifference > 0 ? 'bg-green-600' : finalScoreDifference < 0 ? 'bg-red-600' : 'bg-gray-500'}`}
+                                className="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50"
+                                onClick={() => setExpandedGameId(isExpanded ? null : game.id)}
                             >
-                                {totalScore} - {game.opponentScore}
-                            </div>
-                        </div>
-
-                        <details className="text-sm text-gray-600 mt-2">
-                            <summary className="font-semibold cursor-pointer hover:text-indigo-600 transition">View Scoring Breakdown</summary>
-                            <ul className="list-disc list-inside mt-2 space-y-1 bg-gray-50 p-3 rounded-lg">
-                                {game.scoreEvents.map((event, index) => {
-                                    const scorer = PLAYERS.find(p => p.id === event.playerId)?.name || 'Unknown Player';
-                                    const time = new Date(event.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                                    return (
-                                        <li key={index}>
-                                            <span className="font-medium text-gray-800">{time}</span>: {scorer} scored a {event.type} (+{event.points})
-                                        </li>
-                                    );
-                                })}
-                            </ul>
-                        </details>
-
-                        <div className="comments-area pt-3 mt-3 border-t border-gray-200">
-                            {editingGameId === game.id ? (
-                                <div className="space-y-2">
-                                    <textarea
-                                        value={currentComment}
-                                        onChange={(e) => setCurrentComment(e.target.value)}
-                                        rows={3}
-                                        className="w-full p-2 border border-gray-300 rounded-md focus:ring-indigo-500 focus:border-indigo-500 transition"
-                                        placeholder="Add your post-game notes here..."
-                                    />
-                                    <div className="flex justify-end space-x-2">
-                                        <button
-                                            onClick={() => handleSaveComment(game.id)}
-                                            className="px-3 py-1 bg-indigo-500 text-white rounded-md text-sm hover:bg-indigo-600 transition"
-                                        >
-                                            Save Notes
-                                        </button>
-                                        <button
-                                            onClick={() => setEditingGameId(null)}
-                                            className="px-3 py-1 bg-gray-300 text-gray-800 rounded-md text-sm hover:bg-gray-400 transition"
-                                        >
-                                            Cancel
-                                        </button>
+                                <div className="flex flex-col">
+                                    <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
+                                        {new Date(game.startTime).toLocaleDateString()}
+                                    </span>
+                                    <div className="flex items-center gap-3">
+                                        <span className={`text-lg font-black ${isWin ? 'text-green-600' : 'text-gray-800'}`}>
+                                            {game.home ? 'Southwell' : game.opponent} {game.home ? ourScore : game.opponentScore}
+                                        </span>
+                                        <span className="text-gray-300 font-bold">vs</span>
+                                        <span className="text-lg font-black text-gray-800">
+                                            {game.home ? game.opponentScore : ourScore} {game.home ? game.opponent : 'Southwell'}
+                                        </span>
                                     </div>
                                 </div>
-                            ) : (
-                                <div>
-                                    <p className="text-sm text-gray-700 mb-2">
-                                        <strong>Notes:</strong> {game.comments || <em className="text-gray-500">No notes added.</em>}
-                                    </p>
+
+                                <div className="flex items-center gap-4">
+                                    <div className={`px-3 py-1 rounded-full text-[10px] font-black uppercase ${isWin ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-600'}`}>
+                                        {isWin ? 'Win' : 'Loss/Draw'}
+                                    </div>
                                     <button
-                                        onClick={() => handleEditComment(game)}
-                                        className="px-3 py-1 bg-gray-100 border border-gray-300 text-sm text-gray-700 rounded-md hover:bg-gray-200 transition"
+                                        onClick={(e) => { e.stopPropagation(); deleteGame(game.id); }}
+                                        className="p-2 text-gray-300 hover:text-red-500 transition-colors"
                                     >
-                                        {game.comments ? 'Edit Notes' : '➕ Add Notes'}
+                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                                        </svg>
                                     </button>
-                                    <button onClick={() => handleDeleteGame(game.id)} className='float-right rounded-xl bg-red-300 w-6 h-6 text-xs'>X</button>
+                                </div>
+                            </div>
+
+                            {/* Expanded Stats Section */}
+                            {isExpanded && (
+                                <div className="p-5 bg-gray-50 border-t border-gray-100 animate-in slide-in-from-top-2 duration-200">
+                                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                                        <StatBox label="Top Tackler" value={getTopTackler(game.tackles)} />
+                                        <StatBox label="Substitutions" value={game.subHistory?.length || 0} />
+                                        <StatBox label="Our Tries" value={game.scoreEvents.filter(e => e.type === 'try').length} />
+                                        <StatBox label="Location" value={game.home ? "Home" : "Away"} />
+                                    </div>
+
+                                    {game.comments && (
+                                        <div className="mb-4 bg-white p-3 rounded-2xl border border-gray-100 italic text-gray-600 text-sm">
+                                            "{game.comments}"
+                                        </div>
+                                    )}
+
+                                    <div className="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <ScoreLog history={game.scoreHistory || []} />
+                                        <TackleLog history={game.tackleHistory || []} />
+                                        <div className="md:col-span-2">
+                                            <SubstitutionLog history={game.subHistory || []} />
+                                        </div>
+                                    </div>
                                 </div>
                             )}
                         </div>
-                    </div>
-                );
-            })}
+                    );
+                })
+            )}
+        </div>
+    );
+}
+
+function StatBox({ label, value }: { label: string, value: string | number }) {
+    return (
+        <div className="bg-white p-3 rounded-2xl border border-gray-100 shadow-sm">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-tighter">{label}</p>
+            <p className="text-sm font-black text-gray-800 truncate">{value}</p>
         </div>
     );
 }

@@ -1,7 +1,6 @@
-// pages/index.tsx (Main App View)
 'use client';
 import { useState, useMemo, useEffect } from 'react';
-import { RugbyGame, ScoreEvent, RUGBY_RULES, PLAYERS, AnimationData } from './types';
+import { RugbyGame, ScoreEvent, RUGBY_RULES, PLAYERS, AnimationData, SubLogEntry, ScoreLogEntry, TackleLogEntry } from './types';
 import GameTimer from './components/Timer';
 import { v4 as uuidv4 } from 'uuid';
 import HistoryViewer from './components/HistoryViewer';
@@ -11,9 +10,9 @@ import StartGameModal from './components/StartGameModel';
 import TryAnimationOverlay from './components/TryAnimationOverlay';
 import Sync from './components/sync';
 import ScoreUnit from './components/ScoreUnit';
-
-
-
+import SubstitutionLog from './components/SubstitutionLog';
+import PlayerPlaytimeStats from './components/PlayerPlaytimeStats';
+import { PlayerGrid } from './components/PlayerGrid';
 
 export default function ScorekeeperApp() {
   const [isFinishModalOpen, setIsFinishModalOpen] = useState(false);
@@ -25,7 +24,75 @@ export default function ScorekeeperApp() {
   const [animationData, setAnimationData] = useState<AnimationData | null>(null);
   const [hasMounted, setHasMounted] = useState(false);
   const [isHome, setIsHome] = useState(activeGame?.home);
+  const [playingIds, setPlayingIds] = useState<string[]>(PLAYERS.map(p => p.id));
+  const [tackleCounts, setTackleCounts] = useState<Record<string, number>>({});
+  const [subHistory, setSubHistory] = useState<SubLogEntry[]>([]);
+  const [tackleHistory, setTackleHistory] = useState<TackleLogEntry[]>([]);
+  const [scoreHistory, setScoreHistory] = useState<ScoreLogEntry[]>([]);
 
+  const handleTackle = (playerId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const playerName = PLAYERS.find(p => p.id === playerId)?.name || "Unknown Player";
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+
+    // 1. Update the counter for the button display
+    setTackleCounts(prev => ({
+      ...prev,
+      [playerId]: (prev[playerId] || 0) + 1
+    }));
+
+    // 2. THE MISSING LOGIC: Update the visual Tackle Log
+    setTackleHistory(prev => [{
+      id: uuidv4(),
+      name: playerName,
+      time: currentTime
+    }, ...prev]);
+  };
+
+  const [playTimes, setPlayTimes] = useState<Record<string, number>>({}); // { playerId: totalSeconds }
+  const [lastOnTime, setLastOnTime] = useState<Record<string, number | null>>(() => {
+    const now = Date.now();
+    const startTimeMap: Record<string, number> = {};
+    PLAYERS.forEach(p => {
+      startTimeMap[p.id] = now;
+    });
+    return startTimeMap;
+  });
+
+  useEffect(() => {
+    const now = Date.now();
+    const initialLastOn: Record<string, number> = {};
+    PLAYERS.forEach(p => initialLastOn[p.id] = now);
+    setLastOnTime(initialLastOn);
+  }, []);
+
+  const togglePlayerStatus = (playerId: string, playerName: string) => {
+    const now = Date.now();
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const isGoingOff = playingIds.includes(playerId);
+
+    if (isGoingOff) {
+      const sessionDuration = Math.floor((now - (lastOnTime[playerId] || now)) / 1000);
+      setPlayTimes(prev => ({
+        ...prev,
+        [playerId]: (prev[playerId] || 0) + sessionDuration
+      }));
+      setLastOnTime(prev => ({ ...prev, [playerId]: null }));
+    } else {
+      setLastOnTime(prev => ({ ...prev, [playerId]: now }));
+    }
+
+    setPlayingIds(prev =>
+      isGoingOff ? prev.filter(id => id !== playerId) : [...prev, playerId]
+    );
+
+    setSubHistory(prev => [{
+      id: crypto.randomUUID(),
+      name: playerName,
+      type: isGoingOff ? 'OFF' : 'ON',
+      time: currentTime
+    }, ...prev]); // Newest at the top
+  };
 
   useEffect(() => {
     setHasMounted(true);
@@ -38,20 +105,27 @@ export default function ScorekeeperApp() {
   const handleScore = (playerId: string, type: 'try' | 'conversion', event: React.MouseEvent<HTMLButtonElement>) => {
     if (!activeGame || activeGame.isFinished) return;
 
+    const playerName = PLAYERS.find(p => p.id === playerId)?.name || "Unknown Player";
+    const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+    setScoreHistory(prev => [{
+      id: crypto.randomUUID(),
+      name: playerName,
+      type: type.toUpperCase(),
+      time: currentTime
+    }, ...prev]);
+
     const rect = event.currentTarget.getBoundingClientRect();
 
-    // Start the animation at the center of the button
     const startX = rect.left + rect.width / 2;
     const startY = rect.top + rect.height / 2;
 
-    // Set the animation data
     setAnimationData({
       type: type.toUpperCase() as 'TRY' | 'CONVERSION',
       startX,
       startY,
     });
 
-    // Auto-dismiss the animation after 1.5 seconds
     setTimeout(() => {
       setAnimationData(null);
     }, 1500);
@@ -74,23 +148,24 @@ export default function ScorekeeperApp() {
   };
 
   const handleGameSetup = (opponentName: string, home: boolean) => {
-    // We can now remove the prompt() call as the name comes from the argument
-
-    // ... existing initialization logic ...
     const newGame: RugbyGame = {
       id: uuidv4(),
       opponent: opponentName || 'Opponent Team', // Use the collected name
       startTime: Date.now(),
-      pauseTime: null,
+      pauseTime: Date.now(),
       elapsedTimeAtPause: 0,
       opponentScore: 0,
       isFinished: false,
       scoreEvents: [],
       comments: '',
-      home
+      home,
     };
 
     setIsHome(newGame.home);
+    const initialLastOn: Record<string, number | null> = {};
+    PLAYERS.forEach(p => initialLastOn[p.id] = null);
+    setLastOnTime(initialLastOn);
+
     setActiveGame(newGame);
     localStorage.setItem('activeGame', JSON.stringify(newGame));
 
@@ -106,7 +181,16 @@ export default function ScorekeeperApp() {
 
     if (activeGame.pauseTime === null) {
       // --- PAUSE LOGIC ---
-      // 1. Calculate the total elapsed time up to the moment of pausing.
+
+      const updatedPlayTimes = { ...playTimes };
+      playingIds.forEach(id => {
+        if (lastOnTime[id]) {
+          const sessionDuration = Math.floor((now - lastOnTime[id]!) / 1000);
+          updatedPlayTimes[id] = (updatedPlayTimes[id] || 0) + sessionDuration;
+        }
+      });
+      setPlayTimes(updatedPlayTimes);
+
       const currentElapsed = now - activeGame.startTime + activeGame.elapsedTimeAtPause;
 
       newGame = {
@@ -116,22 +200,20 @@ export default function ScorekeeperApp() {
       };
 
     } else {
-      // We only need to reset startTime back to 'now' because the running total 
-      // time is already saved in activeGame.elapsedTimeAtPause.
-
-      // Calculate the duration of the pause to ensure accuracy, 
-      // although we don't strictly need it for the state update,
-      // it helps to verify that the time has been tracked correctly.
+      const clearedLastOn: Record<string, number | null> = {};
+      PLAYERS.forEach(p => clearedLastOn[p.id] = null);
+      setLastOnTime(clearedLastOn);
+      const updatedLastOn = { ...lastOnTime };
+      playingIds.forEach(id => {
+        updatedLastOn[id] = now;
+      });
+      setLastOnTime(updatedLastOn);
       const pauseDuration = now - activeGame.pauseTime;
 
       newGame = {
         ...activeGame,
-        // Reset startTime to NOW. The timer calculation (Date.now() - startTime)
-        // will start calculating the NEW segment from zero, adding to the 
-        // PREVIOUSLY saved elapsedTimeAtPause.
         startTime: now,
         pauseTime: null,
-        // elapsedTimeAtPause REMAINS the same total time as when it was paused.
       };
     }
 
@@ -146,7 +228,6 @@ export default function ScorekeeperApp() {
 
     const newGame: RugbyGame = {
       ...activeGame,
-      // Increment the opponent's score
       opponentScore: activeGame.opponentScore + points,
     };
 
@@ -156,28 +237,40 @@ export default function ScorekeeperApp() {
 
   const finishGame = () => {
     if (!activeGame) return;
-    // Step 1: Stop the timer (if running) and save the final elapsed time
-    const now = Date.now();
-    let finalElapsed = activeGame.elapsedTimeAtPause;
 
-    // If the game was running when the button was pressed, calculate the last segment of time
+    const now = Date.now();
+
+    // 1. Calculate final elapsed time (as you already do)
+    let finalElapsed = activeGame.elapsedTimeAtPause;
     if (activeGame.pauseTime === null && !activeGame.isFinished) {
       finalElapsed = activeGame.elapsedTimeAtPause + (now - activeGame.startTime);
     }
 
-    // Step 2: Update the activeGame object with the final time and finished status
+    // 2. Snapshot the current playTimes
+    // Note: You might want to run one last calculation for players 
+    // currently on the pitch to get their final seconds!
+    const finalPlayTimes = { ...playTimes };
+    playingIds.forEach(id => {
+      if (lastOnTime[id]) {
+        const session = Math.floor((now - lastOnTime[id]!) / 1000);
+        finalPlayTimes[id] = (finalPlayTimes[id] || 0) + session;
+      }
+    });
+
     const finalActiveGame: RugbyGame = {
       ...activeGame,
       isFinished: true,
       pauseTime: null,
-      // This is the total time elapsed for the whole game
       elapsedTimeAtPause: finalElapsed,
+      tackles: tackleCounts,
+      subHistory: subHistory,
+      playtimeTotals: finalPlayTimes,
+      scoreHistory: scoreHistory,
+      tackleHistory: tackleHistory,
     };
 
     setActiveGame(finalActiveGame);
     localStorage.setItem('activeGame', JSON.stringify(finalActiveGame));
-
-    // Step 3: Open the comment collection modal
     setIsFinishModalOpen(true);
   };
 
@@ -220,7 +313,6 @@ export default function ScorekeeperApp() {
             Track match time, score player tries, and save game history.
           </p>
 
-          {/* YOUR STYLED START BUTTON */}
           <button
             className='text-center text-xl bg-green-500 hover:bg-green-600 active:bg-green-700 
                              text-white font-bold h-20 w-60 m-4 p-4 rounded-2xl shadow-lg 
@@ -251,20 +343,16 @@ export default function ScorekeeperApp() {
   const handleSaveFinalGame = () => {
     if (!activeGame) return;
 
-    // 1. Create the final game object with the collected comment
     const finishedGameWithComment: RugbyGame = {
       ...activeGame,
       comments: postGameComment,
     };
 
-    // 2. Save to history
     setHistoricGames((prev: RugbyGame[]) => [finishedGameWithComment, ...prev]);
 
-    // 3. Clear active game state and LocalStorage
     setActiveGame(null);
     localStorage.removeItem('activeGame');
 
-    // 4. Reset modal state
     setIsFinishModalOpen(false);
     setPostGameComment('');
   };
@@ -274,21 +362,17 @@ export default function ScorekeeperApp() {
 
     const { scoreEvents } = activeGame;
 
-    // 1. Find the score event with the latest timestamp
     const lastScoreEvent = scoreEvents.reduce((latest, current) => {
       return (current.timestamp > latest.timestamp) ? current : latest;
     }, scoreEvents[0]);
 
-    // 2. Filter the score events to exclude the last one found
     const updatedScoreEvents = scoreEvents.filter(event => event.id !== lastScoreEvent.id);
 
-    // 3. Create the new game state
     const newGame: RugbyGame = {
       ...activeGame,
       scoreEvents: updatedScoreEvents,
     };
 
-    // 4. Update state and persistence
     setActiveGame(newGame);
     localStorage.setItem('activeGame', JSON.stringify(newGame));
   };
@@ -296,16 +380,7 @@ export default function ScorekeeperApp() {
   const handleUndoOpponentScore = () => {
     if (!activeGame || activeGame.opponentScore <= 0) return;
 
-    // This is simpler as we don't track individual opponent events, 
-    // we must prompt or ask the user which amount to undo.
-    // For simplicity, we'll implement a single-point undo (undo last point total)
-
-    // In a real app, you'd track opponent events too, but since we don't, 
-    // we'll make a simplification: undo the largest typical score (try=5 points) 
-    // and let the user correct it later, or prompt for the amount.
-
-    // For robust scoring, the best approach is to prompt the user:
-    const undoAmount = parseInt(prompt("Enter points to subtract from Opponent Score (e.g., 5 or 2):") || '0');
+    const undoAmount = 5;//parseInt(prompt("Enter points to subtract from Opponent Score (e.g., 5 or 2):") || '0');
 
     if (undoAmount > 0) {
       const newScore = Math.max(0, activeGame.opponentScore - undoAmount);
@@ -324,9 +399,7 @@ export default function ScorekeeperApp() {
       }} ></Sync>
 
       <div className="flex flex-col items-center min-h-screen bg-blue-300 p-4">
-        {/* 1. Use the GameTimer to CALCULATE the time (It will call the setter below) */}
 
-        {/* 2. Integrate the elapsedTimeDisplay into the score banner */}
         <div className="score-display text-center my-4 w-full grid grid-cols-3 h-30 justify-around items-center">
 
           {!isHome && <ScoreUnit score={activeGame.opponentScore} label={activeGame.opponent} onUndo={handleUndoOpponentScore} colourClass={'text-red-600'}></ScoreUnit>}
@@ -370,32 +443,11 @@ export default function ScorekeeperApp() {
         </button> */}
         </div>
 
-        <h3 className="text-xl font-bold text-gray-700 mt-4 mb-2"></h3>
+        <PlayerGrid players={PLAYERS} playingIds={playingIds} toggleStatus={togglePlayerStatus} handleScore={handleScore} tackleCounts={tackleCounts} handleTackle={handleTackle}></PlayerGrid>
 
-        <div className="grid grid-cols-4 gap-3 w-full max-w-xl mb-6">
-          {PLAYERS.map(player => (
-            <div key={player.id} className="bg-white p-3 rounded-lg shadow-sm border border-gray-200">
-              <p className="font-semibold text-lg text-gray-800 truncate mb-2">{player.name}</p>
-              <div className="flex justify-between gap-2">
-                <button
-                  onClick={(e) => handleScore(player.id, 'try', e)}
-                  className="flex-1 py-2 bg-green-500 w-100 hover:bg-green-600 text-white text-sm font-medium rounded-md transition shadow-sm"
-                >
-                  Try
-                </button>
-                {/* <button
-                onClick={() => handleScore(player.id, 'conversion')}
-                className="flex-1 py-2 bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium rounded-md transition shadow-sm"
-              >
-                Conversion (+2)
-              </button> */}
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* END GAME BUTTON */}
-        <h3 className="text-xl font-bold text-gray-700 mb-2"></h3>
+        {/* <PlayerPlaytimeStats playTimes={playTimes} playingIds={playingIds} players={PLAYERS} tackleCounts={tackleCounts} ></PlayerPlaytimeStats> */}
+        <SubstitutionLog history={subHistory}></SubstitutionLog>
+        <h3 className="text-xl font-bold text-gray-700 mb-2 mt-2"></h3>
         <button
           type="button" // Prevent default form submission on click
           onClick={() => setIsHome(!isHome)}
@@ -427,7 +479,6 @@ export default function ScorekeeperApp() {
 
         <TryAnimationOverlay data={animationData} />
 
-        {/* History Component */}
         <div className="w-full max-w-xl mt-8">
           <HistoryViewer games={historicGames} setGames={setHistoricGames} />
         </div>
