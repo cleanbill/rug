@@ -77,8 +77,9 @@ export default function ScorekeeperApp() {
     const playerName = PLAYERS.find(p => p.id === playerId)?.name || "Unknown Player";
     const currentTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
+    const scoreId = crypto.randomUUID();
     setScoreHistory(prev => [{
-      id: crypto.randomUUID(),
+      id: scoreId,
       name: playerName,
       type: type.toUpperCase(),
       time: currentTime
@@ -100,7 +101,7 @@ export default function ScorekeeperApp() {
     }, 1500);
 
     const newEvent: ScoreEvent = {
-      id: uuidv4(),
+      id: scoreId,
       playerId,
       type,
       points: RUGBY_RULES[type],
@@ -338,6 +339,11 @@ export default function ScorekeeperApp() {
   }, [activeGame]);
 
   const overwriteData = (incoming: any) => {
+    if (incoming.value?.data == null) {
+      console.log("Cannot sync as there is no data");
+      console.log(incoming);
+      return false;
+    }
     const data = incoming.value.data;
     console.log('overwrite:', isFinishModalOpen, postGameComment, activeGame, historicGames, isStartModalOpen, opponentNameInput);
     setIsFinishModalOpen(data.isFinishModalOpen);
@@ -347,6 +353,7 @@ export default function ScorekeeperApp() {
     setHistoricGames(data.historicGames);
     setIsStartModalOpen(data.isStartModalOpen);
     setOpponentNameInput(data.opponentNameInput);
+    return true;
   }
 
   if (!hasMounted) {

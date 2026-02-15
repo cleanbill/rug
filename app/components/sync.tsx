@@ -2,9 +2,7 @@
 import { useLocalStorage } from "usehooks-ts";
 import { useEffect, useState } from "react";
 import { exportData, importData } from "@/data/backupUtils";
-
-export const VERSIONS_STAMP = 'versions-stamp';
-export const API_KEY = 'API_KEY';
+import { API_KEY, VERSIONS_STAMP } from "../types";
 
 type Props = {
     overwriteData: Function;
@@ -82,8 +80,12 @@ const Sync = (props: Props) => {
             return;
         }
         setVersionstamp(data.versionstamp);
-        props.overwriteData(data);
-        toast.info("Sync'd up!");
+        const ok = props.overwriteData(data);
+        if (ok) {
+            toast.info("Sync'd up!");
+        } else {
+            toast.error("No data coming back from sync")
+        }
         release();
     }
 
@@ -101,6 +103,7 @@ const Sync = (props: Props) => {
     const save = async () => {
         if (blocked) {
             console.warn('Re-click save - blocked');
+            return;
         }
         block();
         checkVersion();
@@ -176,12 +179,12 @@ const Sync = (props: Props) => {
                 <div className={message.error ? "text-red-500 m-3 p-2 text-center bg-slate-300 rounded-lg" : "text-blue-500 m-3 p-2 text-center bg-slate-300 rounded-lg"}>{message.message}
                 </div>}
 
-            {mounted && hasToken && <div>
+            {mounted && hasToken && !blocked && <div>
                 <div className='grid grid-cols-5'>
-                    <button id="load-butt" className="w-12 text-orange-500 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-xl rounded-xl h-8 float-start" title="sync" onClick={load} >↻</button>
-                    <button id="upload-butt" className="w-10 text-xl text-yellow-100 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="upload" onClick={upload} >🢁</button>
+                    <button id="load-butt" className="w-12 text-orange-500 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-2xl rounded-xl h-8 float-start" title="sync" onClick={load} >↻</button>
+                    <button id="upload-butt" className="w-10 font-bold text-2xl text-yellow-100 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="upload" onClick={upload} >↑</button>
                     <button id="clear-butt" className="w-12 text-red-500 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-xl rounded-xl h-8 place-self-center" title="clear" onClick={clearToken} >🧹</button>
-                    <button id="download-butt" className="w-10 text-xl text-yellow-100 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="download" onClick={download} >🢃</button>
+                    <button id="download-butt" className="w-10 text-2xl font-bold text-yellow-100 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="download" onClick={download} >↓</button>
                     <button id="save-butt" className="w-12 text-green-600 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-xl rounded-xl h-8 place-self-end" title="send" onClick={save} >➤</button>
                 </div>
             </div>}

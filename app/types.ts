@@ -49,6 +49,9 @@ export interface RugbyGame {
     tackleHistory?: TackleLogEntry[];
 }
 
+export const VERSIONS_STAMP = 'versions-stamp';
+export const API_KEY = 'API_KEY';
+
 export interface AnimationData {
     type: 'TRY' | 'CONVERSION';
     startX: number;
@@ -62,21 +65,22 @@ export type Player = {
 
 // Player data (can be simple array of names/IDs)
 export const PLAYERS: Array<Player> = [
-    { id: 'p01', name: 'Ben' },
-    { id: 'p02', name: 'Cory' },
-    { id: 'p03', name: 'Declan' },
-    { id: 'p04', name: 'Elmer' },
-    { id: 'p05', name: 'George' },
-    { id: 'p06', name: 'Jack B' },
-    { id: 'p07', name: 'Jack E' },
-    { id: 'p08', name: 'Joe' },
-    { id: 'p09', name: 'Maksym' },
-    { id: 'p10', name: 'Oscar' },
-    { id: 'p11', name: 'Sam' },
-    { id: 'p12', name: 'Spenser' },
-    { id: 'p13', name: 'Sully' },
-    { id: 'p14', name: 'Teddy' },
-    { id: 'p15', name: 'Zeke' }
+    { id: 'p01', name: 'Barnaby' },
+    { id: 'p02', name: 'Ben' },
+    { id: 'p03', name: 'Cory' },
+    { id: 'p04', name: 'Declan' },
+    { id: 'p05', name: 'Elmer' },
+    { id: 'p06', name: 'George' },
+    { id: 'p07', name: 'Jack B' },
+    { id: 'p08', name: 'Jack E' },
+    { id: 'p09', name: 'Joe' },
+    { id: 'p10', name: 'Maksym' },
+    { id: 'p11', name: 'Oscar' },
+    { id: 'p12', name: 'Sam' },
+    { id: 'p13', name: 'Spenser' },
+    { id: 'p14', name: 'Sully' },
+    { id: 'p15', name: 'Teddy' },
+    { id: 'p16', name: 'Zeke' }
 ];
 
 // Rugby Score Rules (U13 is often simplified)

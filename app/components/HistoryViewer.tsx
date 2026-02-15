@@ -13,10 +13,59 @@ interface HistoryViewerProps {
 export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
     const [expandedGameId, setExpandedGameId] = useState<string | null>(null);
 
+    const [editingGameId, setEditingGameId] = useState<string | null>(null);
+    const [editComments, setEditComments] = useState("");
+
     const deleteGame = (id: string) => {
         if (confirm('Are you sure you want to delete this game record?')) {
             setGames(prev => prev.filter(g => g.id !== id));
         }
+    };
+
+    const startEditSummary = (game: RugbyGame) => {
+        setEditingGameId(game.id);
+        setEditComments(game.comments || "");
+    };
+
+    const saveSummary = (id: string) => {
+        setGames(prev => prev.map(g => g.id === id ? { ...g, comments: editComments } : g));
+        setEditingGameId(null);
+    };
+
+    const removeScore = (gameId: string, logId: string) => {
+        if (!confirm('Remove this score from the match history?')) return;
+
+        setGames(prev => prev.map(g => {
+            if (g.id !== gameId) return g;
+
+            // Remove from history log
+            const updatedHistory = (g.scoreHistory || []).filter(h => h.id !== logId);
+
+            // Remove from scoreEvents (calculation)
+            // Try to match by ID, or fallback to timestamp/type if IDs weren't synced in old data
+            let updatedEvents = g.scoreEvents.filter(e => e.id !== logId);
+
+            if (updatedEvents.length === g.scoreEvents.length) {
+                // Fallback: If nothing was removed by ID, try matching by name/type/time (approximate)
+                const logToRemove = g.scoreHistory?.find(h => h.id === logId);
+                if (logToRemove) {
+                    const indexToRemove = g.scoreEvents.findIndex(e =>
+                        e.type.toLowerCase() === logToRemove.type.toLowerCase() &&
+                        PLAYERS.find(p => p.id === e.playerId)?.name === logToRemove.name
+                    );
+                    if (indexToRemove !== -1) {
+                        updatedEvents = [...g.scoreEvents];
+                        updatedEvents.splice(indexToRemove, 1);
+                    }
+                }
+            }
+
+            return {
+                ...g,
+                scoreHistory: updatedHistory,
+                scoreEvents: updatedEvents
+            };
+        }));
     };
 
     const getTopTackler = (tackles: Record<string, number> | undefined) => {
@@ -44,6 +93,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                     const ourScore = calculateOurScore(game);
                     const isExpanded = expandedGameId === game.id;
                     const isWin = ourScore > game.opponentScore;
+                    const isEditing = editingGameId === game.id;
 
                     return (
                         <div
@@ -53,7 +103,10 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                             {/* Main Summary Bar */}
                             <div
                                 className="p-5 flex items-center justify-between cursor-pointer hover:bg-gray-50"
-                                onClick={() => setExpandedGameId(isExpanded ? null : game.id)}
+                                onClick={() => {
+                                    setExpandedGameId(isExpanded ? null : game.id);
+                                    if (isEditing) setEditingGameId(null);
+                                }}
                             >
                                 <div className="flex flex-col">
                                     <span className="text-xs font-bold text-gray-400 uppercase tracking-widest">
@@ -95,14 +148,53 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                                         <StatBox label="Location" value={game.home ? "Home" : "Away"} />
                                     </div>
 
-                                    {game.comments && (
-                                        <div className="mb-4 bg-white p-3 rounded-2xl border border-gray-100 italic text-gray-600 text-sm">
-                                            "{game.comments}"
+                                    <div className="mb-4">
+                                        <div className="flex items-center justify-between mb-2">
+                                            <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Match Summary</span>
+                                            {!isEditing && (
+                                                <button
+                                                    onClick={() => startEditSummary(game)}
+                                                    className="text-[10px] font-bold text-blue-500 hover:text-blue-700 uppercase"
+                                                >
+                                                    Edit
+                                                </button>
+                                            )}
                                         </div>
-                                    )}
+                                        {isEditing ? (
+                                            <div className="space-y-2">
+                                                <textarea
+                                                    value={editComments}
+                                                    onChange={(e) => setEditComments(e.target.value)}
+                                                    className="w-full p-3 rounded-2xl border border-blue-200 focus:ring-2 focus:ring-blue-100 outline-none text-sm text-gray-700 h-24"
+                                                    placeholder="Add match notes..."
+                                                />
+                                                <div className="flex justify-end gap-2">
+                                                    <button
+                                                        onClick={() => setEditingGameId(null)}
+                                                        className="px-3 py-1 text-xs font-bold text-gray-500"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                    <button
+                                                        onClick={() => saveSummary(game.id)}
+                                                        className="px-3 py-1 text-xs font-bold bg-blue-500 text-white rounded-lg"
+                                                    >
+                                                        Save
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ) : (
+                                            <div className="bg-white p-3 rounded-2xl border border-gray-100 italic text-gray-600 text-sm">
+                                                {game.comments ? `"${game.comments}"` : <span className="text-gray-300">No summary provided.</span>}
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <div className="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <ScoreLog history={game.scoreHistory || []} />
+                                        <ScoreLog
+                                            history={game.scoreHistory || []}
+                                            onRemoveScore={(logId) => removeScore(game.id, logId)}
+                                        />
                                         <TackleLog history={game.tackleHistory || []} />
                                         <div className="md:col-span-2">
                                             <SubstitutionLog history={game.subHistory || []} />
