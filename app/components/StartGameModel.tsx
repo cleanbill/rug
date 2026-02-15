@@ -96,7 +96,7 @@ export default function StartGameModal({ isOpen, onClose, onStart, input, setInp
                     ref={inputRef}
                     required
                     // Tailwind styling for input field
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition mb-6 text-lg"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition mb-6 text-lg text-gray-900 font-bold bg-white"
                 />
 
                 <div className="flex justify-between space-x-3" >
@@ -104,7 +104,7 @@ export default function StartGameModal({ isOpen, onClose, onStart, input, setInp
                         type="button" // Important: use 'button' type to prevent form submission
                         onClick={onClose}
                         // Tailwind styling for Cancel button
-                        className="flex-1 py-3 bg-gray-300 text-gray-800 font-semibold rounded-lg hover:bg-gray-400 transition"
+                        className="flex-1 py-3 bg-gray-200 text-gray-700 font-bold rounded-lg hover:bg-gray-300 transition"
                     >
                         Cancel
                     </button>

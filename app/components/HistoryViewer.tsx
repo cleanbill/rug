@@ -4,6 +4,7 @@ import { RugbyGame, PLAYERS, RUGBY_RULES, ScoreType } from '../types';
 import ScoreLog from './ScoreLog';
 import SubstitutionLog from './SubstitutionLog';
 import TackleLog from './TackleLog';
+import ConfirmationDialog from './ConfirmationDialog';
 
 interface HistoryViewerProps {
     games: RugbyGame[];
@@ -16,10 +17,13 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
     const [editingGameId, setEditingGameId] = useState<string | null>(null);
     const [editComments, setEditComments] = useState("");
 
+    // State for Custom Dialogs
+    const [confirmDeleteGame, setConfirmDeleteGame] = useState<string | null>(null);
+    const [confirmRemoveScore, setConfirmRemoveScore] = useState<{ gameId: string, logId: string } | null>(null);
+
     const deleteGame = (id: string) => {
-        if (confirm('Are you sure you want to delete this game record?')) {
-            setGames(prev => prev.filter(g => g.id !== id));
-        }
+        setGames(prev => prev.filter(g => g.id !== id));
+        setConfirmDeleteGame(null);
     };
 
     const startEditSummary = (game: RugbyGame) => {
@@ -33,8 +37,6 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
     };
 
     const removeScore = (gameId: string, logId: string) => {
-        if (!confirm('Remove this score from the match history?')) return;
-
         setGames(prev => prev.map(g => {
             if (g.id !== gameId) return g;
 
@@ -66,6 +68,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                 scoreEvents: updatedEvents
             };
         }));
+        setConfirmRemoveScore(null);
     };
 
     const getTopTackler = (tackles: Record<string, number> | undefined) => {
@@ -136,7 +139,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                                         {isWin ? 'Win' : 'Loss/Draw'}
                                     </div>
                                     <button
-                                        onClick={(e) => { e.stopPropagation(); deleteGame(game.id); }}
+                                        onClick={(e) => { e.stopPropagation(); setConfirmDeleteGame(game.id); }}
                                         className="p-2 text-gray-300 hover:text-red-500 transition-colors"
                                     >
                                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
@@ -201,7 +204,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                                     <div className="w-full max-w-xl grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <ScoreLog
                                             history={game.scoreHistory || []}
-                                            onRemoveScore={(logId) => removeScore(game.id, logId)}
+                                            onRemoveScore={(logId) => setConfirmRemoveScore({ gameId: game.id, logId })}
                                         />
                                         <TackleLog history={game.tackleHistory || []} />
                                         <div className="md:col-span-2">
@@ -214,6 +217,29 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                     );
                 })
             )}
+
+            {/* Custom Dialogs */}
+            <ConfirmationDialog
+                isOpen={!!confirmDeleteGame}
+                title="Delete Match"
+                message="Are you sure you want to permanently delete this match record? This action cannot be undone."
+                confirmText="Delete Match"
+                cancelText="Keep Match"
+                variant="danger"
+                onConfirm={() => confirmDeleteGame && deleteGame(confirmDeleteGame)}
+                onCancel={() => setConfirmDeleteGame(null)}
+            />
+
+            <ConfirmationDialog
+                isOpen={!!confirmRemoveScore}
+                title="Remove Score"
+                message="Remove this item from the match history? This will also update the total score for the match."
+                confirmText="Remove"
+                cancelText="Cancel"
+                variant="warning"
+                onConfirm={() => confirmRemoveScore && removeScore(confirmRemoveScore.gameId, confirmRemoveScore.logId)}
+                onCancel={() => setConfirmRemoveScore(null)}
+            />
         </div>
     );
 }
