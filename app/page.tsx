@@ -349,7 +349,7 @@ export default function ScorekeeperApp() {
     setIsFinishModalOpen(data.isFinishModalOpen);
     setPostGameComment(data.postGameComment);
     setActiveGame(data.activeGame);
-    setIsHome(data.activeGame.home);
+    setIsHome(data.activeGame?.home);
     setHistoricGames(data.historicGames);
     setIsStartModalOpen(data.isStartModalOpen);
     setOpponentNameInput(data.opponentNameInput);

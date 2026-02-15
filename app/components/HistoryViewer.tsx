@@ -1,6 +1,6 @@
 'use client';
 import React, { useState } from 'react';
-import { RugbyGame, PLAYERS } from '../types';
+import { RugbyGame, PLAYERS, RUGBY_RULES, ScoreType } from '../types';
 import ScoreLog from './ScoreLog';
 import SubstitutionLog from './SubstitutionLog';
 import TackleLog from './TackleLog';
@@ -77,6 +77,14 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
     };
 
     const calculateOurScore = (game: RugbyGame) => {
+        // Prefer calculating from scoreHistory as it's what the user edits in the log
+        if (game.scoreHistory && game.scoreHistory.length > 0) {
+            return game.scoreHistory.reduce((total, log) => {
+                const type = log.type.toLowerCase() as ScoreType;
+                return total + (RUGBY_RULES[type] || 0);
+            }, 0);
+        }
+        // Fallback to scoreEvents for older data without logs
         return game.scoreEvents.reduce((total, event) => total + event.points, 0);
     };
 
@@ -144,7 +152,7 @@ export default function HistoryViewer({ games, setGames }: HistoryViewerProps) {
                                     <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
                                         <StatBox label="Top Tackler" value={getTopTackler(game.tackles)} />
                                         <StatBox label="Substitutions" value={game.subHistory?.length || 0} />
-                                        <StatBox label="Our Tries" value={game.scoreEvents.filter(e => e.type === 'try').length} />
+                                        <StatBox label="Our Tries" value={(game.scoreHistory || []).filter(h => h.type.toLowerCase() === 'try').length} />
                                         <StatBox label="Location" value={game.home ? "Home" : "Away"} />
                                     </div>
 
