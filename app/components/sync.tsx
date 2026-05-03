@@ -167,7 +167,23 @@ const Sync = (props: Props) => {
     }
 
     const upload = () => {
-        importData(props.overwriteData);
+        const dir = document.getElementById("importData");
+        dir?.click();
+    }
+
+    const handleImportFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        const content = await file.text();
+        try {
+            const json = JSON.parse(content);
+            props.overwriteData(json);
+            toast.info("Data imported from file");
+        } catch (err) {
+            toast.error("Invalid file format");
+        }
+        // Reset the input so the same file can be imported again if needed
+        e.target.value = '';
     }
 
     return (
@@ -176,21 +192,21 @@ const Sync = (props: Props) => {
                 <input id="token-input" autoFocus className="w-11/12 p-2 mb-2 ml-4 rounded-lg bg-sky-200 text-left" placeholder="Whats the token"></input><button className="ml-3 text-gray-500 bg-sky-200 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300  rounded-xl h-9 w-12 mt-3" onClick={updateToken}>post</button>
             </div>}
             {message.show &&
-                <div className={message.error ? "text-red-500 m-3 p-2 text-center bg-slate-300 rounded-lg" : "text-blue-500 m-3 p-2 text-center bg-slate-300 rounded-lg"}>{message.message}
+                <div className={message.error ? "bg-red-100 text-red-700 border border-red-400 font-semibold m-3 p-2 text-center rounded-lg shadow-sm" : "bg-blue-100 text-blue-700 border border-blue-400 font-semibold m-3 p-2 text-center rounded-lg shadow-sm"}>{message.message}
                 </div>}
 
             {mounted && hasToken && !blocked && <div>
                 <div className='grid grid-cols-5'>
                     <button id="load-butt" className="w-12 text-orange-500 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-2xl rounded-xl h-8 float-start" title="sync" onClick={load} >↻</button>
-                    <button id="upload-butt" className="w-10 font-bold text-2xl text-yellow-100 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="upload" onClick={upload} >↑</button>
+                    <button id="upload-butt" className="w-10 font-bold text-2xl text-blue-600 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="upload" onClick={upload} >↑</button>
                     <button id="clear-butt" className="w-12 text-red-500 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-xl rounded-xl h-8 place-self-center" title="clear" onClick={clearToken} >🧹</button>
-                    <button id="download-butt" className="w-10 text-2xl font-bold text-yellow-100 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="download" onClick={download} >↓</button>
+                    <button id="download-butt" className="w-10 text-2xl font-bold text-indigo-600 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 rounded-xl h-8 place-self-center" title="download" onClick={download} >↓</button>
                     <button id="save-butt" className="w-12 text-green-600 hover:bg-blue-200 focus:outline-none focus:ring hover:pr-0 focus:ring-yellow-300 text-xl rounded-xl h-8 place-self-end" title="send" onClick={save} >➤</button>
                 </div>
             </div>}
             <input type="file" hidden
                 id="importData" name="importData"
-                accept="application/json" onChange={() => importData(props.overwriteData)} />
+                accept="application/json" onChange={handleImportFile} />
         </div >
     )
 }

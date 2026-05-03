@@ -339,20 +339,24 @@ export default function ScorekeeperApp() {
   }, [activeGame]);
 
   const overwriteData = (incoming: any) => {
-    if (incoming.value?.data == null) {
+    const data = incoming.value?.data ? incoming.value.data : incoming;
+
+    if (data.activeGame === undefined && data.historicGames === undefined) {
       console.log("Cannot sync as there is no data");
       console.log(incoming);
       return false;
     }
-    const data = incoming.value.data;
+
     console.log('overwrite:', isFinishModalOpen, postGameComment, activeGame, historicGames, isStartModalOpen, opponentNameInput);
-    setIsFinishModalOpen(data.isFinishModalOpen);
-    setPostGameComment(data.postGameComment);
-    setActiveGame(data.activeGame);
-    setIsHome(data.activeGame?.home);
-    setHistoricGames(data.historicGames);
-    setIsStartModalOpen(data.isStartModalOpen);
-    setOpponentNameInput(data.opponentNameInput);
+    setIsFinishModalOpen(data.isFinishModalOpen || false);
+    setPostGameComment(data.postGameComment || '');
+    setActiveGame(data.activeGame || null);
+    setIsHome(data.activeGame?.home || false);
+    if (data.historicGames) {
+      setHistoricGames(data.historicGames);
+    }
+    setIsStartModalOpen(data.isStartModalOpen || false);
+    setOpponentNameInput(data.opponentNameInput || '');
     return true;
   }
 
