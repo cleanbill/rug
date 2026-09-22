@@ -38,7 +38,7 @@ export default function FinishGameModal({
                     value={comment}
                     onChange={(e) => setComment(e.target.value)}
                     rows={4}
-                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition"
+                    className="w-full p-3 border border-gray-300 rounded-lg focus:ring-indigo-500 focus:border-indigo-500 transition text-gray-900 bg-white placeholder-gray-400"
                     placeholder="e.g., Good effort from Player C. Need to work on defense at the breakdown."
                 />
 

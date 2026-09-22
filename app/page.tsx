@@ -388,7 +388,7 @@ export default function ScorekeeperApp() {
         isFinishModalOpen, postGameComment, activeGame, historicGames, isStartModalOpen, opponentNameInput
       }} ></Sync>
 
-      <div className="flex flex-col items-center min-h-screen bg-blue-300 p-4">
+      <div className="flex flex-col items-center min-h-screen bg-slate-100 text-slate-800 p-4">
 
         <Scoreboard isHome={isHome || true}
           activeGame={activeGame}
@@ -399,8 +399,8 @@ export default function ScorekeeperApp() {
         <button
           onClick={handleTogglePause}
           className={`w-full max-w-sm py-3 mb-4 text-white font-semibold rounded-lg shadow-md transition duration-150 ${activeGame.pauseTime === null
-            ? 'bg-yellow-500 hover:bg-yellow-600' // PAUSE color
-            : 'bg-indigo-600 hover:bg-indigo-700' // RESUME color
+            ? 'bg-amber-500 hover:bg-amber-600' // PAUSE color
+            : 'bg-slate-600 hover:bg-slate-700' // RESUME color
             }`}
         >
           {activeGame.pauseTime === null ? '⏸️ Pause Game' : '▶️ Resume Game'}
@@ -410,7 +410,7 @@ export default function ScorekeeperApp() {
         <div className="flex justify-center gap-6 mb-6">
           <button
             onClick={() => handleOpponentScore('try')}
-            className="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-medium rounded-lg transition shadow-md"
+            className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-medium rounded-lg transition shadow-md"
           >
             Opponent Try
           </button>
@@ -423,9 +423,9 @@ export default function ScorekeeperApp() {
         <button
           type="button" // Prevent default form submission on click
           onClick={() => setIsHome(!isHome)}
-          className={`w-full max-w-sm py-3 bg-green-600 hover:bg-green-700 text-white font-bold rounded-lg shadow-lg transition mb-2 ${isHome
-            ? ""
-            : "w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"
+          className={`w-full max-w-sm py-3 text-white font-bold rounded-lg shadow-lg transition mb-2 ${isHome
+            ? "bg-emerald-600 hover:bg-emerald-700"
+            : "bg-rose-600 hover:bg-rose-700"
             }`}
         >
           {isHome && <div>Home</div>}
@@ -434,7 +434,7 @@ export default function ScorekeeperApp() {
 
 
         <button
-          className="w-full max-w-sm py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-lg shadow-lg transition"
+          className="w-full max-w-sm py-3 bg-rose-700 hover:bg-rose-800 text-white font-bold rounded-lg shadow-lg transition"
           onClick={finishGame}
         >
           🏁 End Match and Save

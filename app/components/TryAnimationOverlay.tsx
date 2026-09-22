@@ -25,7 +25,7 @@ export default function TryAnimationOverlay({ data }: TryAnimationProps) {
     if (!data) return null;
 
     const text = data.type === 'TRY' ? 'TRY!' : '2 POINTS!';
-    const color = data.type === 'TRY' ? 'red' : 'blue';
+    const color = data.type === 'TRY' ? '#ff2a2a' : '#2a88ff';
     const baseClasses = "fixed font-black tracking-widest pointer-events-none transition-all duration-7000 ease-out z-[100]"; // Increased Z-index
 
     // --- RESPONSIVE STYLE CONFIGURATION ---
@@ -68,7 +68,7 @@ export default function TryAnimationOverlay({ data }: TryAnimationProps) {
                 className={`text-7xl md:text-9xl`}
                 style={{
                     // Apply text shadow for the 'wire'/'neon' effect 
-                    textShadow: `0 0 10px ${color}, 0 0 5px rgba(255, 255, 255, 0.5)`,
+                    textShadow: `0 0 10px ${color}, 0 0 20px ${color}, 0 0 40px ${color}, 0 0 15px rgba(255, 255, 255, 0.8)`,
                 }}
             >
                 {text}

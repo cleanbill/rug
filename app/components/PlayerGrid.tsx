@@ -30,7 +30,7 @@ export const PlayerGrid = ({ players, playingIds, toggleStatus, handleScore, han
 
                         <button
                             onClick={() => toggleStatus(player.id, player.name)}
-                            className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase border-2 border-black ${isPlaying ? 'bg-red-400 text-black' : 'bg-green-400 text-black'
+                            className={`text-[9px] font-black px-1.5 py-0.5 rounded uppercase border-2 border-black ${isPlaying ? 'bg-rose-400 text-black' : 'bg-emerald-400 text-black'
                                 }`}
                         >
                             {isPlaying ? 'Off' : 'On'}
@@ -41,7 +41,7 @@ export const PlayerGrid = ({ players, playingIds, toggleStatus, handleScore, han
                         <button
                             onClick={(e) => handleScore(player.id, 'try', e)}
                             disabled={!isPlaying}
-                            className={`py-1.5 text-white text-xs font-black uppercase rounded shadow-sm transition-transform active:scale-95 ${isPlaying ? 'bg-green-500 hover:bg-green-600' : 'bg-gray-300 cursor-not-allowed'
+                            className={`py-1.5 text-white text-xs font-black uppercase rounded shadow-sm transition-transform active:scale-95 ${isPlaying ? 'bg-emerald-600 hover:bg-emerald-700' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                 }`}
                         >
                             Try
@@ -50,7 +50,7 @@ export const PlayerGrid = ({ players, playingIds, toggleStatus, handleScore, han
                         <button
                             onClick={(e) => handleTackle(player.id, e)}
                             disabled={!isPlaying}
-                            className={`py-1.5 text-xs font-black uppercase rounded border-2 border-black transition-transform active:scale-95 ${isPlaying ? 'bg-yellow-400 hover:bg-yellow-500 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-gray-200 text-gray-400 border-gray-300'
+                            className={`py-1.5 text-xs font-black uppercase rounded border-2 border-black transition-transform active:scale-95 ${isPlaying ? 'bg-amber-400 hover:bg-amber-500 shadow-[2px_2px_0px_0px_rgba(0,0,0,1)]' : 'bg-slate-200 text-slate-400 border-slate-300'
                                 }`}
                         >
                             Tkl: {tackles}
